@@ -1,25 +1,58 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Dosen;
 
-use Illuminate\Http\Request;
-use Inertia\Inertia; // Jangan lupa import Inertia
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia; // Jangan lupa import ini
 
-class DosenController extends Controller
+class DashboardController extends Controller
 {
-    public function dashboard()
+    public function index()
     {
-        // Kita pakai dummy data dulu biar cepat bisa di-testing
-        $data = [
-            'total_proyek' => 5,
-            'total_kelompok' => 15,
-            'kelompok_kritis' => [
-                ['id' => 1, 'nama' => 'Kelompok 3 - Sistem Kasir', 'status' => 'Konflik Internal (Anggota Pasif)'],
-                ['id' => 2, 'nama' => 'Kelompok 5 - Web E-Commerce', 'status' => 'Tenggat Waktu Terlewat']
-            ]
+        // 1. Ambil data asli dari Database (kalau tabelnya sudah ada isinya)
+        $jumlahKelas = DB::table('project_classes')->count();
+        $jumlahKelompok = DB::table('groups')->count();
+
+        // 2. Data Dummy (Sambil nunggu database kamu selesai diisi semua)
+        // Ini supaya UI React kamu nggak kosong melompong pas di-test
+        $kelompokKritis = [
+            ['id' => 1, 'nama' => 'Kelompok 3', 'masalah' => 'Anggota Pasif (> 1 Minggu)']
         ];
 
-        // Ini akan merender file Pages/Dosen/Dashboard.jsx yang ada di gambarmu
-        return Inertia::render('Dosen/Dashboard', $data);
+        $daftarKelompok = [
+            [
+                'id' => 1,
+                'nama' => 'Kelompok 1',
+                'proyek' => 'Sistem Kasir Toko Bangunan',
+                'status' => 'Aman',
+                'progress' => '75%',
+                'log_terakhir' => 'Budi mengunggah Sequence Diagram'
+            ],
+            [
+                'id' => 2,
+                'nama' => 'Kelompok 2',
+                'proyek' => 'Aplikasi Registrasi Soft-Skill',
+                'status' => 'Aman',
+                'progress' => '40%',
+                'log_terakhir' => 'Siti memperbarui skema Database'
+            ],
+            [
+                'id' => 3,
+                'nama' => 'Kelompok 3',
+                'proyek' => 'Web E-Commerce',
+                'status' => 'Konflik',
+                'progress' => '15%',
+                'log_terakhir' => 'Andi mengajukan komplain pembagian tugas'
+            ],
+        ];
+
+        // 3. Kirim SEMUA data ke React
+        return Inertia::render('Dosen/Dashboard', [
+            'totalKelasAktif' => $jumlahKelas ?: 4, // Pakai angka 4 kalau DB masih kosong
+            'totalKelompok'   => $jumlahKelompok ?: 12, // Pakai angka 12 kalau DB masih kosong
+            'kelompokKritis'  => $kelompokKritis,
+            'daftarKelompok'  => $daftarKelompok,
+        ]);
     }
 }
