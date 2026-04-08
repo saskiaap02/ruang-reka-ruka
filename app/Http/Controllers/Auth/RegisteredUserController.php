@@ -22,11 +22,8 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response | View // Kembalikan View jika menggunakan Blade
     {
-        // Jika menggunakan Blade, ubah baris ini
-        return view('auth.register'); 
-        
-        // Jika menggunakan Inertia.js, biarkan seperti ini
-        // return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register');
+          
     }
 
     /**
