@@ -1,4 +1,4 @@
-<?php
+// app/Http/Controllers/Auth/RegisteredUserController.php
 
 namespace App\Http\Controllers\Auth;
 
@@ -9,49 +9,52 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
-use Illuminate\View\View;
+use Illuminate\Validation\Rules;
+use Inertia\Inertia; // Jika menggunakan Inertia.js, jika tidak, abaikan
+use Inertia\Response; // Jika menggunakan Inertia.js, jika tidak, abaikan
 
 class RegisteredUserController extends Controller
 {
     /**
-     * Menampilkan halaman registrasi.
+     * Menampilkan view registrasi.
      */
-    public function create(): View
+    public function create(): Response | View // Kembalikan View jika menggunakan Blade
     {
-        return view('auth.register');
+        // Jika menggunakan Blade, ubah baris ini
+        return view('auth.register'); 
+        
+        // Jika menggunakan Inertia.js, biarkan seperti ini
+        // return Inertia::render('Auth/Register');
     }
 
     /**
-     * Proses pendaftaran user baru.
+     * Menangani permintaan registrasi akun baru.
+     *
+     * @throws \Illuminate\Validation\ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
-        // 1. Validasi Input
+        // ... (Kode validasi dan penyimpanan Anda) ...
         $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'nim_nip'  => ['required', 'string', 'max:50', 'unique:users,nim_nip'], // Validasi NIM/NIP unik di tabel users
-            'role'     => ['required', 'in:mahasiswa,dosen'],                    // Hanya boleh pilih salah satu
-            'email'    => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Password::defaults()],
+            'name' => 'required|string|max:255',
+            'nim_nip' => 'required|string|max:50|unique:'.User::class, // Validasi NIM/NIP
+            'role' => 'required|in:mahasiswa,dosen', // Validasi Role
+            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // 2. Simpan ke Database
         $user = User::create([
-            'name'     => $request->name,
-            'nim_nip'  => $request->nim_nip,
-            'role'     => $request->role,
-            'email'    => $request->email,
+            'name' => $request->name,
+            'nim_nip' => $request->nim_nip, // Simpan NIM/NIP
+            'role' => $request->role,       // Simpan Role
+            'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
 
-        // 3. Jalankan Event Registered
         event(new Registered($user));
 
-        // 4. Otomatis Login setelah daftar
         Auth::login($user);
 
-        // 5. Redirect ke Dashboard
         return redirect(route('dashboard', absolute: false));
     }
 }
