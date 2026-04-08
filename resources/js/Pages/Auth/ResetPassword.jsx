@@ -26,19 +26,19 @@ export default function ResetPassword({ token, email }) {
         <div className="flex h-screen bg-white font-sans antialiased text-slate-900 overflow-hidden">
             <Head title="Buat Sandi Baru - RuKa." />
 
-            {/* --- BAGIAN KIRI: Teal/Emerald --- */}
-            <div className="hidden lg:flex w-1/2 h-full bg-teal-900 p-12 text-white flex-col justify-between relative overflow-hidden">
-                <div className="absolute -top-24 -left-24 w-[400px] h-[400px] rounded-full bg-teal-600 opacity-20 blur-[80px]"></div>
-                <div className="absolute top-1/2 right-1/4 w-[500px] h-[500px] rounded-full bg-teal-500 opacity-10 blur-[100px]"></div>
+            {/* --- BAGIAN KIRI: Navy / Biru Gelap --- */}
+            <div className="hidden lg:flex w-1/2 h-full bg-[#0a1120] p-12 text-white flex-col justify-between relative overflow-hidden">
+                <div className="absolute -top-24 -left-24 w-[400px] h-[400px] rounded-full bg-blue-600 opacity-20 blur-[80px]"></div>
+                <div className="absolute top-1/2 right-1/4 w-[500px] h-[500px] rounded-full bg-blue-500 opacity-10 blur-[100px]"></div>
 
                 <div className="relative z-10 flex flex-col h-full justify-center">
                     <h1 className="text-6xl font-black tracking-tighter mb-4 text-white">SECURE<br />ACCESS.</h1>
-                    <p className="text-2xl font-bold mb-6 text-teal-300">Amankan Kembali Akunmu</p>
-                    <p className="text-teal-100 max-w-md leading-relaxed text-lg">
+                    <p className="text-2xl font-bold mb-6 text-blue-400">Amankan Kembali Akunmu</p>
+                    <p className="text-slate-400 max-w-md leading-relaxed text-lg">
                         Buat kata sandi baru yang kuat dan unik. Pastikan Anda menyimpannya dengan baik agar tidak tertinggal info proyek penting.
                     </p>
                 </div>
-                <div className="relative z-10 text-teal-300 text-sm font-medium">© 2026 RuKa. All rights reserved.</div>
+                <div className="relative z-10 text-slate-500 text-sm font-medium">© 2026 RuKa. All rights reserved.</div>
             </div>
 
             {/* --- BAGIAN KANAN: Form Reset Password --- */}
@@ -54,7 +54,6 @@ export default function ResetPassword({ token, email }) {
                     <p className="text-slate-500 mb-8 font-medium">Silakan masukkan kata sandi baru Anda di bawah ini.</p>
 
                     <form onSubmit={submit} className="space-y-5">
-                        {/* Email (Biasanya disembunyikan atau di-readonly kalau reset password, tapi kita tampilkan sesuai bawaan) */}
                         <div>
                             <label htmlFor="email" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Email</label>
                             <input
@@ -76,7 +75,7 @@ export default function ResetPassword({ token, email }) {
                                 type="password"
                                 name="password"
                                 value={data.password}
-                                className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition text-slate-900 font-medium"
+                                className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-slate-900 font-medium"
                                 onChange={(e) => setData('password', e.target.value)}
                                 placeholder="••••••••"
                                 required
@@ -92,7 +91,7 @@ export default function ResetPassword({ token, email }) {
                                 type="password"
                                 name="password_confirmation"
                                 value={data.password_confirmation}
-                                className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition text-slate-900 font-medium"
+                                className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-slate-900 font-medium"
                                 onChange={(e) => setData('password_confirmation', e.target.value)}
                                 placeholder="••••••••"
                                 required
@@ -101,7 +100,7 @@ export default function ResetPassword({ token, email }) {
                         </div>
 
                         <div className="pt-4">
-                            <button type="submit" disabled={processing} className="w-full flex justify-center py-4 px-6 border border-transparent rounded-full shadow-xl shadow-teal-500/20 text-lg font-bold text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transform transition hover:-translate-y-1 disabled:opacity-50">
+                            <button type="submit" disabled={processing} className="w-full flex justify-center py-4 px-6 border border-transparent rounded-full shadow-xl shadow-blue-500/20 text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transform transition hover:-translate-y-1 disabled:opacity-50">
                                 {processing ? 'Menyimpan...' : 'Simpan Sandi Baru'}
                             </button>
                         </div>
