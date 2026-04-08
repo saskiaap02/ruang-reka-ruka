@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Dosen\DashboardController; // Pastikan ini sesuai folder controller kamu
+use App\Http\Controllers\Dosen\DashboardController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -43,8 +43,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('DashboardMahasiswa');
     })->name('mahasiswa.dashboard');
 
-    // --- Dashboard Dosen (Digabung ke sini) ---
-    Route::get('/dosen/dashboard', [DashboardController::class, 'index'])->name('dosen.dashboard');
+    // --- Kelompok Rute Dosen ---
+    Route::prefix('dosen')->name('dosen.')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        // Rute untuk simpan kelas baru
+        Route::post('/kelas', [DashboardController::class, 'storeKelas'])->name('kelas.store');
+    });
 
     // --- Profile Management ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
