@@ -45,9 +45,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- Kelompok Rute Dosen ---
     Route::prefix('dosen')->name('dosen.')->group(function () {
+        // Halaman Utama Dashboard Dosen
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        
         // Rute untuk simpan kelas baru
         Route::post('/kelas', [DashboardController::class, 'storeKelas'])->name('kelas.store');
+
+        // Rute untuk melihat detail kelompok tertentu (ID)
+        Route::get('/kelompok/{id}', [DashboardController::class, 'showKelompok'])->name('kelompok.show');
     });
 
     // --- Profile Management ---
@@ -56,5 +61,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// 5. Load Rute Otentikasi Bawaan
+// 5. Load Rute Otentikasi Bawaan (Login, Logout, dll)
 require __DIR__.'/auth.php';
