@@ -2,18 +2,18 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Dosen\DashboardController;
-use App\Http\Controllers\Auth\RegisteredUserController; // Pastikan import ini ada
+use App\Http\Controllers\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| Web Routes - SIM-CR
 |--------------------------------------------------------------------------
 */
 
-// 1. Landing Page
+// 1. Landing Page (Halaman Awal)
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
@@ -21,24 +21,26 @@ Route::get('/', function () {
     ]);
 });
 
-// 2. Registrasi (Opsional: Jika ingin override bawaan Breeze/Jetstream)
+// 2. Rute Registrasi (Manual Override)
 Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store']);
 });
 
-// 3. Dashboard Redirector (Logic Role Switcher)
+// 3. Dashboard Redirector (Pintu Masuk Utama setelah Login)
 Route::get('/dashboard', function (Request $request) {
-    // Jika Role adalah Dosen
+    // A. Cek jika user adalah Dosen
     if ($request->user()->role === 'dosen') {
         return redirect()->route('dosen.dashboard');
     }
     
-    // Default: Dashboard Mahasiswa/Umum
-    return Inertia::render('Dashboard'); 
+    // B. Area Mahasiswa (Tampilan Sementara sebelum temanmu push kode)
+    // Jika file Dashboard.vue sudah ada, gunakan: return Inertia::render('Dashboard');
+    return '<h1>Berhasil Login!</h1> <p>Ini adalah area Dashboard Mahasiswa. Nanti bagian ini akan diisi oleh codingan teman saya.</p>';
+
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// 4. Rute Terproteksi (Hanya user yang sudah Login)
+// 4. Rute Terproteksi (Hanya User Terautentikasi)
 Route::middleware('auth')->group(function () {
     
     // Profile Management
@@ -53,5 +55,5 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// 5. Load Rute Otentikasi Bawaan (Login, Logout, Reset Password, dll)
+// 5. Load Rute Otentikasi Bawaan (Breeze/Standard)
 require __DIR__.'/auth.php';
