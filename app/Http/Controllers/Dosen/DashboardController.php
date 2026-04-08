@@ -7,10 +7,14 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str; // Penting untuk generate kode unik
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+    /**
+     * Menampilkan Dashboard Utama Dosen
+     */
     public function index()
     {
         // 1. Ambil ID Dosen yang sedang login
@@ -21,7 +25,7 @@ class DashboardController extends Controller
             ->where('dosen_id', $dosenId)
             ->count();
 
-        // 3. Ambil semua kelompok yang ada di dalam kelas-kelas dosen ini
+        // 3. Ambil semua kelompok dari kelas-kelas dosen ini
         $groups = DB::table('groups')
             ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
             ->where('project_classes.dosen_id', $dosenId)
@@ -30,11 +34,10 @@ class DashboardController extends Controller
 
         $totalKelompok = $groups->count();
 
-        // 4. Siapkan array kosong untuk menampung data yang akan dikirim ke React
         $daftarKelompok = [];
         $kelompokKritis = [];
 
-        // 5. Looping setiap kelompok untuk menghitung progress dan cek status kritis
+        // 4. Looping untuk hitung Progress & Deteksi Status Kritis
         foreach ($groups as $group) {
             
             // --- Hitung Progress dari tabel Tasks ---
@@ -56,26 +59,24 @@ class DashboardController extends Controller
 
             $logText = $latestLog ? $latestLog->user_name . ' melakukan ' . $latestLog->action_type : 'Belum ada aktivitas';
 
-            // --- Logika Warning AI (> 3 Hari Pasif) ---
+            // --- Logika Monitoring Pasif (> 3 Hari) ---
             $isKritis = false;
             $masalah = '';
 
             if ($latestLog) {
-                // Hitung selisih hari dari log terakhir
                 $daysSinceLastLog = Carbon::parse($latestLog->created_at)->diffInDays(Carbon::now());
                 if ($daysSinceLastLog >= 3) {
                     $isKritis = true;
                     $masalah = "Pasif selama $daysSinceLastLog hari";
                 }
             } else {
-                // Kalau belum ada log sama sekali
                 $isKritis = true;
                 $masalah = 'Belum ada aktivitas sama sekali';
             }
 
             $status = $isKritis ? 'Kritis' : 'Aman';
 
-            // Masukkan ke array utama
+            // Masukkan ke array utama untuk tabel monitoring
             $daftarKelompok[] = [
                 'id' => $group->id,
                 'nama' => $group->nama_kelompok . ' (' . $group->nama_kelas . ')',
@@ -85,7 +86,7 @@ class DashboardController extends Controller
                 'log_terakhir' => $logText
             ];
 
-            // Jika kritis, masukkan juga ke array peringatan
+            // Jika kritis, masukkan ke array peringatan/warning
             if ($isKritis) {
                 $kelompokKritis[] = [
                     'id' => $group->id,
@@ -95,12 +96,45 @@ class DashboardController extends Controller
             }
         }
 
-        // 6. Kirim data dinamis ke Frontend React
         return Inertia::render('Dosen/Dashboard', [
             'totalKelasAktif' => $totalKelasAktif,
             'totalKelompok' => $totalKelompok,
             'kelompokKritis' => $kelompokKritis,
             'daftarKelompok' => $daftarKelompok
         ]);
+    }
+
+    /**
+     * Menyimpan Kelas Baru
+     */
+    public function storeKelas(Request $request)
+    {
+        // 1. Validasi inputan dari form
+        $request->validate([
+            'mata_kuliah' => 'required|string|max:255',
+            'nama_kelas' => 'required|string|max:255',
+            'bobot_dasar' => 'required|numeric',
+            'bobot_audit' => 'required|numeric',
+            'bobot_peer' => 'required|numeric',
+        ]);
+
+        // 2. Generate 6 digit kode unik
+        $inviteCode = strtoupper(Str::random(6));
+
+        // 3. Simpan ke database
+        DB::table('project_classes')->insert([
+            'dosen_id' => Auth::id(),
+            'mata_kuliah' => $request->mata_kuliah,
+            'nama_kelas' => $request->nama_kelas,
+            'invite_code' => $inviteCode,
+            'bobot_dasar' => $request->bobot_dasar,
+            'bobot_audit' => $request->bobot_audit,
+            'bobot_peer' => $request->bobot_peer,
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        // 4. Balik ke dashboard dengan pesan sukses (opsional)
+        return redirect()->back()->with('message', 'Kelas berhasil dibuat!');
     }
 }
