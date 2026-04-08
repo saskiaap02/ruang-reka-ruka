@@ -1,22 +1,25 @@
 <?php
 
-namespace App\Http\Controllers\Dosen;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\DB; // Tambahan untuk memanggil Database
+use Illuminate\Http\Request;
+use Inertia\Inertia; // Jangan lupa import Inertia
 
-class DashboardController extends Controller
+class DosenController extends Controller
 {
-    public function index()
+    public function dashboard()
     {
-        // 1. Ambil data (hitung) langsung dari tabel
-        $jumlahKelas = DB::table('project_classes')->count();
-        $jumlahKelompok = DB::table('groups')->count();
+        // Kita pakai dummy data dulu biar cepat bisa di-testing
+        $data = [
+            'total_proyek' => 5,
+            'total_kelompok' => 15,
+            'kelompok_kritis' => [
+                ['id' => 1, 'nama' => 'Kelompok 3 - Sistem Kasir', 'status' => 'Konflik Internal (Anggota Pasif)'],
+                ['id' => 2, 'nama' => 'Kelompok 5 - Web E-Commerce', 'status' => 'Tenggat Waktu Terlewat']
+            ]
+        ];
 
-        // 2. Kirim datanya ke React sebagai variabel pendamping
-        return inertia('Dosen/Dashboard', [
-            'totalKelasAktif' => $jumlahKelas,
-            'totalKelompok'   => $jumlahKelompok,
-        ]);
+        // Ini akan merender file Pages/Dosen/Dashboard.jsx yang ada di gambarmu
+        return Inertia::render('Dosen/Dashboard', $data);
     }
 }
