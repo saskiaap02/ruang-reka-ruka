@@ -38,22 +38,10 @@ Route::get('/dashboard', function (Request $request) {
     return redirect()->route('mahasiswa.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+
 // --- RUTE SEMENTARA MAHASISWA (BUATAN TEMAN) ---
-// Perhatikan: Namanya aku ubah jadi 'mahasiswa.dashboard' biar nggak bentrok
 Route::get('/dashboard-mahasiswa', function () {
-    return '
-        <div style="font-family: sans-serif; padding: 50px; text-align: center;">
-            <h1 style="color: #2563eb;">🎓 Berhasil Login sebagai Mahasiswa!</h1> 
-            <p>Ini adalah area Dashboard Mahasiswa. Nanti bagian ini akan diisi oleh codingan teman saya.</p>
-            
-            <form method="POST" action="' . route('logout') . '" style="margin-top: 30px;">
-                ' . csrf_field() . '
-                <button type="submit" style="padding: 10px 24px; background-color: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.5);">
-                    Keluar (Log Out)
-                </button>
-            </form>
-        </div>
-    ';
+    return Inertia::render('DashboardMahasiswa'); // <-- Sekarang manggil file JSX, bukan HTML mentah lagi!
 })->middleware(['auth', 'verified'])->name('mahasiswa.dashboard');
 
 // 4. Rute Terproteksi (Hanya User Terautentikasi)
