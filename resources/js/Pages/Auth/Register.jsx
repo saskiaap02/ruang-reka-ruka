@@ -9,6 +9,7 @@ export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
+        nim_nip: '', // <--- Tambahkan ini
         password: '',
         password_confirmation: '',
     });
@@ -41,6 +42,22 @@ export default function Register() {
                     />
 
                     <InputError message={errors.name} className="mt-2" />
+                </div>
+
+                <div className="mt-4">
+                    <InputLabel htmlFor="nim_nip" value="NIM / NIP" />
+
+                    <TextInput
+                        id="nim_nip"
+                        name="nim_nip"
+                        value={data.nim_nip}
+                        className="mt-1 block w-full"
+                        autoComplete="username"
+                        onChange={(e) => setData('nim_nip', e.target.value)}
+                        required
+                    />
+
+                    <InputError message={errors.nim_nip} className="mt-2" />
                 </div>
 
                 <div className="mt-4">
