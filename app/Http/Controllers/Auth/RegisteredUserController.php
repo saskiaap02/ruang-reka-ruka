@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Auth/RegisteredUserController.php
-
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -12,19 +10,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
-use Inertia\Inertia; // Jika menggunakan Inertia.js, jika tidak, abaikan
-use Inertia\Response; // Jika menggunakan Inertia.js, jika tidak, abaikan
+use Inertia\Inertia;
+use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
     /**
      * Menampilkan view registrasi.
      */
-    public function create(): Response | View // Kembalikan View jika menggunakan Blade
+    public function create(): Response
     {
         return Inertia::render('Auth/Register');
-        
-  
     }
 
     /**
@@ -34,19 +30,18 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        // ... (Kode validasi dan penyimpanan Anda) ...
         $request->validate([
             'name' => 'required|string|max:255',
-            'nim_nip' => 'required|string|max:50|unique:'.User::class, // Validasi NIM/NIP
-            'role' => 'required|in:mahasiswa,dosen', // Validasi Role
+            'nim_nip' => 'required|string|max:50|unique:'.User::class, 
+            'role' => 'required|in:mahasiswa,dosen', 
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $user = User::create([
             'name' => $request->name,
-            'nim_nip' => $request->nim_nip, // Simpan NIM/NIP
-            'role' => $request->role,       // Simpan Role
+            'nim_nip' => $request->nim_nip,
+            'role' => $request->role,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -55,6 +50,14 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
+        // --- LOGIKA REDIRECT BERDASARKAN ROLE ---
+        
+        // 1. Jika pendaftar adalah Dosen, arahkan ke dashboard khusus dosen
+        if ($user->role === 'dosen') {
+            return redirect()->route('dosen.dashboard');
+        }
+
+        // 2. Jika Mahasiswa, arahkan ke rute 'dashboard' (halaman parkir sementara)
         return redirect(route('dashboard', absolute: false));
     }
 }
