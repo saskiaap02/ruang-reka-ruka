@@ -25,7 +25,7 @@ export default function Login({ status, canResetPassword }) {
 
             {/* --- BAGIAN KIRI: Biru Vibrant (Ciri Khas Login) --- */}
             <div className="hidden lg:flex w-1/2 bg-blue-700 p-12 text-white flex-col justify-between relative overflow-hidden">
-                {/* Elemen Dekoratif: Bulatan Biru yang Berbeda */}
+                {/* Elemen Dekoratif */}
                 <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-blue-500 opacity-40"></div>
                 <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-blue-800 opacity-60"></div>
                 <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-blue-400 opacity-20"></div>
@@ -47,16 +47,24 @@ export default function Login({ status, canResetPassword }) {
             <div className="w-full lg:w-1/2 bg-white flex flex-col justify-center p-8 sm:p-12 md:p-16 relative">
                 <div className="max-w-md mx-auto w-full">
 
-                    {/* Logo RuKa */}
-                    <div className="flex items-center gap-2 mb-10">
-                        <span className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-black tracking-tighter shadow-md">RuKa.</span>
-                        <span className="text-xl font-bold text-slate-800">Ruang Reka</span>
-                    </div>
+                    {/* Tombol Kembali ke Beranda */}
+                    <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-blue-600 transition mb-8 group">
+                        <svg className="w-4 h-4 transform group-hover:-translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Kembali ke Beranda
+                    </Link>
+
+                    {/* Logo RuKa (Sekarang bisa diklik!) */}
+                    <Link href="/" className="flex items-center gap-2 mb-10 group w-fit">
+                        <span className="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-lg font-black tracking-tighter shadow-md group-hover:bg-blue-700 transition transform group-hover:scale-105">RuKa.</span>
+                        <span className="text-2xl font-bold text-slate-800 group-hover:text-blue-600 transition">Ruang Reka</span>
+                    </Link>
 
                     <h2 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Selamat Datang Kembali</h2>
                     <p className="text-slate-500 mb-8 font-medium">Masuk dengan akun Anda yang sudah terdaftar.</p>
 
-                    {/* Pesan Status (Misal: Sukses reset password) */}
+                    {/* Pesan Status */}
                     {status && <div className="mb-4 font-medium text-sm text-emerald-600 bg-emerald-50 p-3 rounded-lg border border-emerald-200">{status}</div>}
 
                     <form onSubmit={submit} className="space-y-5">
@@ -121,7 +129,6 @@ export default function Login({ status, canResetPassword }) {
                         </div>
                     </form>
 
-                    {/* Link ke Register */}
                     <div className="mt-8 text-center text-sm">
                         <p className="text-slate-600 font-medium">Belum punya akun? <Link href={route('register')} className="font-bold text-blue-600 hover:text-blue-800 transition">Daftar di sini</Link></p>
                     </div>
