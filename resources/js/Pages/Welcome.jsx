@@ -51,7 +51,7 @@ export default function Welcome({ auth }) {
                         </h1>
 
                         <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-                            Solusi manajemen tim: Pantau aktivitas anggota, minimalisir free-rider, dan wujudkan transparansi nilai proyek.
+                            Solusi manajemen tim: Pantau aktivitas anggota, minimalisir <i>free-rider</i>, dan wujudkan transparansi nilai proyek.
                         </p>
 
                         {!auth.user && (
