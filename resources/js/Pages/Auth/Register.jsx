@@ -11,7 +11,9 @@ export default function Register() {
         password_confirmation: '',
     });
 
-    useEffect(() => { return () => { reset('password', 'password_confirmation'); }; }, []);
+    useEffect(() => {
+        return () => { reset('password', 'password_confirmation'); };
+    }, []);
 
     const submit = (e) => {
         e.preventDefault();
@@ -24,7 +26,6 @@ export default function Register() {
 
             {/* --- BAGIAN KIRI: Navy Gelap (Desktop Only) --- */}
             <div className="hidden lg:flex w-1/2 bg-[#0a1120] p-12 text-white flex-col justify-between relative overflow-hidden">
-                {/* Elemen Dekoratif: Bulatan Biru Estetik */}
                 <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-blue-600 opacity-20"></div>
                 <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-blue-600 opacity-20"></div>
                 <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-blue-500 opacity-10"></div>
@@ -46,18 +47,26 @@ export default function Register() {
             <div className="w-full lg:w-1/2 bg-white flex flex-col justify-center p-8 sm:p-12 md:p-16 relative">
                 <div className="max-w-md mx-auto w-full">
 
-                    {/* Logo RuKa */}
-                    <div className="flex items-center gap-2 mb-10">
-                        <span className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-black tracking-tighter shadow-md">RuKa.</span>
-                        <span className="text-xl font-bold text-slate-800">Ruang Reka</span>
-                    </div>
+                    {/* Tombol Kembali ke Beranda */}
+                    <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-blue-600 transition mb-8 group">
+                        <svg className="w-4 h-4 transform group-hover:-translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Kembali ke Beranda
+                    </Link>
+
+                    {/* Logo RuKa (Sekarang bisa diklik!) */}
+                    <Link href="/" className="flex items-center gap-2 mb-10 group w-fit">
+                        <span className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-sm font-black tracking-tighter shadow-md group-hover:bg-blue-700 transition transform group-hover:scale-105">RuKa.</span>
+                        <span className="text-xl font-bold text-slate-800 group-hover:text-blue-600 transition">Ruang Reka</span>
+                    </Link>
 
                     <h2 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Daftar Akun Baru</h2>
                     <p className="text-slate-500 mb-8 font-medium">Daftar untuk mulai ruang kolaborasi di RuKa.</p>
 
                     <form onSubmit={submit} className="space-y-5">
 
-                        {/* Tombol Pilihan Role (Bisa di-klik) */}
+                        {/* Tombol Pilihan Role */}
                         <div className="bg-slate-100 p-1.5 rounded-xl flex mb-4 border border-slate-200">
                             <button type="button" onClick={() => setData('role', 'mahasiswa')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${data.role === 'mahasiswa' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
                                 🎓 Mahasiswa
