@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str; // Penting untuk generate kode unik
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -25,7 +25,14 @@ class DashboardController extends Controller
             ->where('dosen_id', $dosenId)
             ->count();
 
-        // 3. Ambil semua kelompok dari kelas-kelas dosen ini
+        // 3. Ambil daftar ruang kelas & kode invite-nya (Data Baru)
+        $daftarKelas = DB::table('project_classes')
+            ->where('dosen_id', $dosenId)
+            ->select('id', 'mata_kuliah', 'nama_kelas', 'invite_code')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // 4. Ambil semua kelompok dari kelas-kelas dosen ini
         $groups = DB::table('groups')
             ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
             ->where('project_classes.dosen_id', $dosenId)
@@ -37,7 +44,7 @@ class DashboardController extends Controller
         $daftarKelompok = [];
         $kelompokKritis = [];
 
-        // 4. Looping untuk hitung Progress & Deteksi Status Kritis
+        // 5. Looping untuk hitung Progress & Deteksi Status Kritis
         foreach ($groups as $group) {
             
             // --- Hitung Progress dari tabel Tasks ---
@@ -76,7 +83,6 @@ class DashboardController extends Controller
 
             $status = $isKritis ? 'Kritis' : 'Aman';
 
-            // Masukkan ke array utama untuk tabel monitoring
             $daftarKelompok[] = [
                 'id' => $group->id,
                 'nama' => $group->nama_kelompok . ' (' . $group->nama_kelas . ')',
@@ -86,7 +92,6 @@ class DashboardController extends Controller
                 'log_terakhir' => $logText
             ];
 
-            // Jika kritis, masukkan ke array peringatan/warning
             if ($isKritis) {
                 $kelompokKritis[] = [
                     'id' => $group->id,
@@ -96,11 +101,13 @@ class DashboardController extends Controller
             }
         }
 
+        // 6. Kirim semua data ke Inertia
         return Inertia::render('Dosen/Dashboard', [
             'totalKelasAktif' => $totalKelasAktif,
             'totalKelompok' => $totalKelompok,
             'kelompokKritis' => $kelompokKritis,
-            'daftarKelompok' => $daftarKelompok
+            'daftarKelompok' => $daftarKelompok,
+            'daftarKelas' => $daftarKelas // <-- Sekarang terkirim ke React
         ]);
     }
 
@@ -109,7 +116,6 @@ class DashboardController extends Controller
      */
     public function storeKelas(Request $request)
     {
-        // 1. Validasi inputan dari form
         $request->validate([
             'mata_kuliah' => 'required|string|max:255',
             'nama_kelas' => 'required|string|max:255',
@@ -118,10 +124,8 @@ class DashboardController extends Controller
             'bobot_peer' => 'required|numeric',
         ]);
 
-        // 2. Generate 6 digit kode unik
         $inviteCode = strtoupper(Str::random(6));
 
-        // 3. Simpan ke database
         DB::table('project_classes')->insert([
             'dosen_id' => Auth::id(),
             'mata_kuliah' => $request->mata_kuliah,
@@ -134,7 +138,6 @@ class DashboardController extends Controller
             'updated_at' => Carbon::now(),
         ]);
 
-        // 4. Balik ke dashboard dengan pesan sukses (opsional)
         return redirect()->back()->with('message', 'Kelas berhasil dibuat!');
     }
 }
