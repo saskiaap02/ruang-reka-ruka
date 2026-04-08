@@ -29,12 +29,17 @@ Route::middleware('guest')->group(function () {
 
 // 3. Dashboard Redirector (Pintu Masuk Utama setelah Login)
 Route::get('/dashboard', function (Request $request) {
-    // A. Cek jika user adalah Dosen
+    // Cek jika user adalah Dosen
     if ($request->user()->role === 'dosen') {
         return redirect()->route('dosen.dashboard');
     }
     
-    /// --- RUTE SEMENTARA MAHASISWA (BUATAN TEMAN) ---
+    // Kalau Mahasiswa, arahkan ke rute dashboard mahasiswa
+    return redirect()->route('mahasiswa.dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+// --- RUTE SEMENTARA MAHASISWA (BUATAN TEMAN) ---
+// Perhatikan: Namanya aku ubah jadi 'mahasiswa.dashboard' biar nggak bentrok
 Route::get('/dashboard-mahasiswa', function () {
     return '
         <div style="font-family: sans-serif; padding: 50px; text-align: center;">
@@ -49,7 +54,8 @@ Route::get('/dashboard-mahasiswa', function () {
             </form>
         </div>
     ';
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth', 'verified'])->name('mahasiswa.dashboard');
+
 // 4. Rute Terproteksi (Hanya User Terautentikasi)
 Route::middleware('auth')->group(function () {
     
