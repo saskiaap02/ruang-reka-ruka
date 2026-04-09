@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage, Link } from '@inertiajs/react';
 
 export default function Edit({ auth, mustVerifyEmail, status }) {
     const user = usePage().props.auth.user;
@@ -48,7 +48,24 @@ export default function Edit({ auth, mustVerifyEmail, status }) {
     return (
         <AuthenticatedLayout
             user={auth.user}
-            header={<h2 className="font-semibold text-xl text-slate-800 dark:text-white leading-tight">Pengaturan Akun</h2>}
+            header={
+                <div className="flex items-center gap-4">
+                    {/* --- TOMBOL KEMBALI KE DASHBOARD --- */}
+                    <Link
+                        href={route('dashboard')}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex items-center gap-1 text-sm font-medium"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                        </svg>
+                        Kembali
+                    </Link>
+
+                    <h2 className="font-semibold text-xl text-slate-800 dark:text-white leading-tight border-l border-slate-300 dark:border-slate-700 pl-4">
+                        Pengaturan Akun
+                    </h2>
+                </div>
+            }
         >
             <Head title="Pengaturan Akun" />
 
@@ -72,7 +89,7 @@ export default function Edit({ auth, mustVerifyEmail, status }) {
                                         type="text"
                                         value={profileData.name}
                                         onChange={e => setProfileData('name', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-white"
                                     />
                                     {profileErrors.name && <p className="mt-2 text-sm text-red-600">{profileErrors.name}</p>}
                                 </div>
@@ -83,7 +100,7 @@ export default function Edit({ auth, mustVerifyEmail, status }) {
                                         type="email"
                                         value={profileData.email}
                                         onChange={e => setProfileData('email', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-white"
                                     />
                                     {profileErrors.email && <p className="mt-2 text-sm text-red-600">{profileErrors.email}</p>}
                                 </div>
@@ -122,7 +139,7 @@ export default function Edit({ auth, mustVerifyEmail, status }) {
                                         type="password"
                                         value={pwdData.current_password}
                                         onChange={e => setPwdData('current_password', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-white"
                                     />
                                     {pwdErrors.current_password && <p className="mt-2 text-sm text-red-600">{pwdErrors.current_password}</p>}
                                 </div>
@@ -133,7 +150,7 @@ export default function Edit({ auth, mustVerifyEmail, status }) {
                                         type="password"
                                         value={pwdData.password}
                                         onChange={e => setPwdData('password', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-white"
                                     />
                                     {pwdErrors.password && <p className="mt-2 text-sm text-red-600">{pwdErrors.password}</p>}
                                 </div>
@@ -144,7 +161,7 @@ export default function Edit({ auth, mustVerifyEmail, status }) {
                                         type="password"
                                         value={pwdData.password_confirmation}
                                         onChange={e => setPwdData('password_confirmation', e.target.value)}
-                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 dark:bg-slate-900 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-white"
                                     />
                                     {pwdErrors.password_confirmation && <p className="mt-2 text-sm text-red-600">{pwdErrors.password_confirmation}</p>}
                                 </div>
