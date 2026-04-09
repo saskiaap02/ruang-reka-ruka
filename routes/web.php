@@ -53,6 +53,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Rute untuk melihat detail kelompok tertentu (ID)
         Route::get('/kelompok/{id}', [DashboardController::class, 'showKelompok'])->name('kelompok.show');
+
+        // Rute Fitur Colek (Nudge) Mahasiswa
+        Route::post('/colek', [DashboardController::class, 'sendNudge'])->name('colek');
     });
 
     // --- Profile Management ---
