@@ -3,106 +3,93 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Carbon\Carbon;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Buat Akun Dosen
-        $dosen = User::create([
-            'nim_nip' => '198001012005011001',
-            'name' => 'Bapak Dosen Pengampu',
-            'email' => 'dosen@test.com',
-            'role' => 'dosen',
-            'password' => Hash::make('password123'),
+        // 1. Buat Akun Dosen (Biar kamu bisa login dan nge-test)
+        $dosenId = DB::table('users')->insertGetId([
+            'name' => 'Saskia (Dosen)',
+            'email' => 'dosen@sim.com',
+            'password' => Hash::make('password'),
+            'role' => 'dosen', // Pastikan kolom role ini ada di tabel users kamu
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ]);
 
-        // 2. Buat Akun Mahasiswa
-        $mahasiswa1 = User::create([
-            'nim_nip' => '2201010045',
-            'name' => 'Saskia',
-            'email' => 'saskia@test.com',
+        // Buat Akun Mahasiswa
+        $mahasiswaId = DB::table('users')->insertGetId([
+            'name' => 'Budi Mahasiswa',
+            'email' => 'budi@sim.com',
+            'password' => Hash::make('password'),
             'role' => 'mahasiswa',
-            'password' => Hash::make('password123'),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ]);
 
-        $mahasiswa2 = User::create([
-            'nim_nip' => '2201010046',
-            'name' => 'Ahmad Zaki',
-            'email' => 'zaki@test.com',
-            'role' => 'mahasiswa',
-            'password' => Hash::make('password123'),
-        ]);
-
-        // 3. Buat Ruang Kelas & Mahasiswa Join
+        // 2. Buat Kelas Proyek
         $kelasId = DB::table('project_classes')->insertGetId([
-            'dosen_id' => $dosen->id,
-            'kode_mk' => 'WEB2-2026',
-            'nama_mk' => 'Pemrograman Web II',
-            'bobot_dasar' => 50,
-            'bobot_audit' => 30,
-            'bobot_peer' => 20,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'dosen_id' => $dosenId,
+            'mata_kuliah' => 'Pemrograman Web II',
+            'nama_kelas' => 'Sistem Informasi 4A',
+            'invite_code' => 'WEB4AX',
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ]);
 
-        DB::table('class_students')->insert([
-            ['project_class_id' => $kelasId, 'student_id' => $mahasiswa1->id, 'created_at' => now(), 'updated_at' => now()],
-            ['project_class_id' => $kelasId, 'student_id' => $mahasiswa2->id, 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        // 3. Buat 3 Kelompok (Skenario: Aman Tinggi, Aman Sedang, Kritis)
+        $groups = [
+            ['nama' => 'Kelompok 1', 'judul' => 'Sistem Kasir Toko Bangunan'],
+            ['nama' => 'Kelompok 2', 'judul' => 'Aplikasi Registrasi Soft-Skill'],
+            ['nama' => 'Kelompok 3', 'judul' => 'AERO-SHIELD Drone Proposal'], // Ini yang akan kita bikin kritis
+        ];
 
-        // 4. Buat Kelompok & Anggota Kelompok
-        $kelompok1Id = DB::table('groups')->insertGetId([
-            'project_class_id' => $kelasId,
-            'nama_kelompok' => 'Kelompok 1 (Final Project)',
-            'project_title' => 'Sistem Resolusi Konflik',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        foreach ($groups as $index => $g) {
+            $groupId = DB::table('groups')->insertGetId([
+                'project_class_id' => $kelasId,
+                'nama_kelompok' => $g['nama'],
+                'project_title' => $g['judul'],
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
 
-        $kelompok2Id = DB::table('groups')->insertGetId([
-            'project_class_id' => $kelasId,
-            'nama_kelompok' => 'Kelompok 2 (E-Commerce)',
-            'project_title' => 'Toko Material Online',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            // 4. Buat Tasks untuk menghitung progress
+            // Kelompok 1: 4 tugas (3 done, 1 in_progress) -> Progress 75%
+            // Kelompok 2: 5 tugas (2 done, 3 backlog) -> Progress 40%
+            // Kelompok 3: 4 tugas (0 done, 4 backlog) -> Progress 0%
+            $tasksToCreate = $index == 0 ? 4 : ($index == 1 ? 5 : 4);
+            $doneCount = $index == 0 ? 3 : ($index == 1 ? 2 : 0);
 
-        DB::table('group_members')->insert([
-            ['group_id' => $kelompok1Id, 'student_id' => $mahasiswa1->id, 'created_at' => now(), 'updated_at' => now()],
-            ['group_id' => $kelompok1Id, 'student_id' => $mahasiswa2->id, 'created_at' => now(), 'updated_at' => now()],
-        ]);
+            for ($i = 0; $i < $tasksToCreate; $i++) {
+                DB::table('tasks')->insert([
+                    'group_id' => $groupId,
+                    'judul' => 'Tugas ' . ($i + 1) . ' untuk ' . $g['nama'],
+                    'status' => $i < $doneCount ? 'done' : 'backlog',
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+            }
 
-        // 5. Buat Tugas & Log Aktivitas (Saskia Ngerjain UI/UX)
-        $task1Id = DB::table('tasks')->insertGetId([
-            'group_id' => $kelompok1Id,
-            'pic_id' => $mahasiswa1->id, 
-            'judul' => 'Penerapan Desain Pro / UI UX',
-            'status' => 'in_progress',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            // 5. Buat Log Aktivitas
+            // Kelompok 1: Aktif hari ini
+            // Kelompok 2: Aktif kemarin
+            // Kelompok 3: Pasif (Log terakhir 4 hari yang lalu -> Memicu status Kritis)
+            $logDate = Carbon::now();
+            if ($index == 1) $logDate = Carbon::now()->subDays(1);
+            if ($index == 2) $logDate = Carbon::now()->subDays(4); 
 
-        DB::table('tasks')->insert([
-            'group_id' => $kelompok1Id,
-            'pic_id' => null,
-            'judul' => 'Integrasi API Midtrans',
-            'status' => 'backlog',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('activity_logs')->insert([
-            'user_id' => $mahasiswa1->id,
-            'group_id' => $kelompok1Id,
-            'task_id' => $task1Id,
-            'action_type' => 'claim_task',
-            'description' => 'Mengklaim tugas UI/UX',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            DB::table('activity_logs')->insert([
+                'user_id' => $mahasiswaId,
+                'group_id' => $groupId,
+                'action_type' => 'Mengunggah Diagram',
+                'description' => 'Menyelesaikan Activity Diagram',
+                'created_at' => $logDate,
+                'updated_at' => $logDate,
+            ]);
+        }
     }
 }

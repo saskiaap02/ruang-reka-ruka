@@ -10,14 +10,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
     /**
-     * Display the registration view.
+     * Menampilkan view registrasi.
      */
     public function create(): Response
     {
@@ -25,20 +24,24 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Handle an incoming registration request.
+     * Menangani permintaan registrasi akun baru.
      *
-     * @throws ValidationException
+     * @throws \Illuminate\Validation\ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'nim_nip' => 'required|string|max:50|unique:'.User::class, 
+            'role' => 'required|in:mahasiswa,dosen', 
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $user = User::create([
             'name' => $request->name,
+            'nim_nip' => $request->nim_nip,
+            'role' => $request->role,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -47,6 +50,14 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
+        // --- LOGIKA REDIRECT BERDASARKAN ROLE ---
+        
+        // 1. Jika pendaftar adalah Dosen, arahkan ke dashboard khusus dosen
+        if ($user->role === 'dosen') {
+            return redirect()->route('dosen.dashboard');
+        }
+
+        // 2. Jika Mahasiswa, arahkan ke rute 'dashboard' (halaman parkir sementara)
         return redirect(route('dashboard', absolute: false));
     }
 }

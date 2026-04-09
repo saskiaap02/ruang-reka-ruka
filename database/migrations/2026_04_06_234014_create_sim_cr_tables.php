@@ -12,8 +12,10 @@ return new class extends Migration
         Schema::create('project_classes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('dosen_id')->constrained('users')->onDelete('cascade');
-            $table->string('kode_mk')->unique(); // Untuk fitur mahasiswa join kelas
-            $table->string('nama_mk');
+            $table->string('mata_kuliah'); // Contoh: Sistem Informasi Manajemen
+            $table->string('nama_kelas');  // Contoh: Kelas 4A
+            $table->string('invite_code', 6)->unique(); // Kode unik 6 digit untuk mahasiswa join
+            
             // Dosen bisa mengatur persentase nilai akhir
             $table->integer('bobot_dasar')->default(50);
             $table->integer('bobot_audit')->default(30);
