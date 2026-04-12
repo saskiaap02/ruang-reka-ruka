@@ -40,11 +40,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- KELOMPOK RUTE DOSEN ---
     Route::prefix('dosen')->name('dosen.')->group(function () {
-    Route::get('/dashboard', [DosenDashboard::class, 'index'])->name('dashboard');
-    Route::post('/kelas', [DosenDashboard::class, 'storeKelas'])->name('kelas.store');
-    Route::post('/kelompok', [DosenDashboard::class, 'storeKelompok'])->name('kelompok.store'); 
-    Route::post('/tambah-anggota', [DosenDashboard::class, 'addMember'])->name('tambah.anggota');
-    Route::get('/kelompok/{id}', [DosenDashboard::class, 'showKelompok'])->name('kelompok.show');
+// Halaman Utama Dashboard Dosen
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        // Rute untuk simpan kelas baru
+        Route::post('/kelas', [DashboardController::class, 'storeKelas'])->name('kelas.store');
+        
+        // Rute buatan kamu (pastikan nama controllernya benar ya!)
+        Route::post('/kelompok', [DashboardController::class, 'storeKelompok'])->name('kelompok.store');
+        Route::post('/tambah-anggota', [DashboardController::class, 'addMember'])->name('tambah.anggota');
+
+        // Rute untuk melihat detail kelompok tertentu (ID)
+        Route::get('/kelompok/{id}', [DashboardController::class, 'showKelompok'])->name('kelompok.show');
+
+        // Rute Fitur Colek (Nudge) Mahasiswa
+        Route::post('/colek', [DashboardController::class, 'sendNudge'])->name('colek');
     });
 
     // --- PROFILE ---

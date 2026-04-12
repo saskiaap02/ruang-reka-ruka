@@ -58,8 +58,6 @@ class DashboardController extends Controller
                 ->first();
 
             $logText = $latestLog ? $latestLog->user_name . ' melakukan ' . $latestLog->action_type : 'Belum ada aktivitas';
-
-            // Penentuan Status Kritis (Kebanggaan Hilma!)
             $isKritis = false;
             $masalah = '';
             if ($latestLog) {
@@ -132,7 +130,7 @@ class DashboardController extends Controller
             'updated_at' => Carbon::now(),
         ]);
 
-        return redirect()->back();
+        return redirect()->back()->with('message', 'Kelas berhasil dibuat!');
     }
 
     /**
@@ -230,6 +228,7 @@ class DashboardController extends Controller
     }
 
     /**
+/**
      * Fitur Audit: Memberikan Nilai
      */
     public function auditStudent(Request $request, $groupId, $studentId)
@@ -245,5 +244,23 @@ class DashboardController extends Controller
             ]);
 
         return back()->with('success', 'Nilai audit berhasil disimpan!');
+    }
+
+    /**
+     * Mengirim Colekan (Nudge) ke Mahasiswa
+     */
+    public function sendNudge(Request $request)
+    {
+        // Pastikan tabel 'nudges' sudah kamu buat di database ya!
+        DB::table('nudges')->insert([
+            'dosen_id' => Auth::id(),
+            'student_id' => $request->student_id,
+            'group_id' => $request->group_id,
+            'message' => "Dosen memberikan peringatan karena kamu tidak aktif selama lebih dari 3 hari.",
+            'created_at' => now(),
+        ]);
+
+        return redirect()->back()->with('message', 'Mahasiswa berhasil dicolek!');
+    }
     }
 }
