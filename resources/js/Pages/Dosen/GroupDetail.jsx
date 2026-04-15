@@ -51,7 +51,6 @@ export default function GroupDetail({ auth, kelompok, anggota, tasks, logs }) {
                                             <p className="font-bold text-sm text-slate-800 dark:text-white">{user.name}</p>
                                             <p className="text-[10px] text-slate-500 uppercase tracking-tighter">Aktif: {user.last_activity}</p>
                                         </div>
-                                        {/* Tampilkan tombol COLEK jika mahasiswa terdeteksi tidak aktif */}
                                         {user.is_inactive && (
                                             <button
                                                 onClick={() => handleColek(user.id)}
@@ -117,6 +116,61 @@ export default function GroupDetail({ auth, kelompok, anggota, tasks, logs }) {
                         </div>
                     </div>
 
+                    {/* AREA PENILAIAN AKHIR (AUTO-GRADING) */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mt-6">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-bold text-slate-800 dark:text-white">Rekap Penilaian Akhir (Auto-Grading)</h3>
+                                <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">
+                                    Bobot: Dasar ({kelompok.bobot_dasar}%) | Audit ({kelompok.bobot_audit}%) | Peer ({kelompok.bobot_peer}%)
+                                </p>
+                            </div>
+                            <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                                Ekspor SIAKAD
+                            </button>
+                        </div>
+                        <div className="p-0 overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-xs text-slate-500 uppercase">
+                                        <th className="p-4 font-bold">Nama Mahasiswa</th>
+                                        <th className="p-4 text-center font-bold">Nilai Dasar</th>
+                                        <th className="p-4 text-center font-bold">Skor Audit (AI)</th>
+                                        <th className="p-4 text-center font-bold">Peer Review</th>
+                                        <th className="p-4 text-center font-black text-blue-600 dark:text-blue-400">Total Akhir</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {anggota.map((user) => {
+                                        // Simulasi Kalkulasi Dasar
+                                        const nDasar = 85;
+                                        const nAudit = user.is_inactive ? 40 : 90;
+                                        const nPeer = 88;
+
+                                        // Rumus kalkulasi
+                                        const total = ((nDasar * kelompok.bobot_dasar) / 100) + ((nAudit * kelompok.bobot_audit) / 100) + ((nPeer * kelompok.bobot_peer) / 100);
+
+                                        return (
+                                            <tr key={user.id} className="border-b border-slate-100 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                                <td className="p-4 font-bold text-slate-800 dark:text-white">{user.name}</td>
+                                                <td className="p-4 text-center text-slate-600 dark:text-slate-300">{nDasar}</td>
+                                                <td className="p-4 text-center">
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${nAudit < 50 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                                        {nAudit}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-center text-slate-600 dark:text-slate-300">{nPeer}</td>
+                                                <td className="p-4 text-center font-black text-lg text-slate-800 dark:text-white">
+                                                    {total.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </AuthenticatedLayout>
