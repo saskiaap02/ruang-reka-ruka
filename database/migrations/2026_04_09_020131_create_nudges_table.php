@@ -11,8 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+       
         Schema::create('nudges', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('dosen_id')->constrained('users');
+            $table->foreignId('student_id')->constrained('users');
+            $table->foreignId('group_id')->constrained('groups');
+            $table->string('message');
+            $table->boolean('is_read')->default(false);
             $table->timestamps();
         });
     }
