@@ -1,19 +1,15 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Dosen\DashboardController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes - SIM-CR
-|--------------------------------------------------------------------------
-*/
+// Penamaan alias agar tidak bentrok
+use App\Http\Controllers\Dosen\DashboardController as DosenDashboard;
+use App\Http\Controllers\Student\DashboardController as StudentDashboard;
 
-// 1. Landing Page
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
@@ -21,13 +17,12 @@ Route::get('/', function () {
     ]);
 });
 
-// 2. Rute Registrasi (Manual Override)
 Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store']);
 });
 
-// 3. Dashboard Redirector (Logika Pemisah Role)
+// Redirect otomatis setelah login
 Route::get('/dashboard', function (Request $request) {
     if ($request->user()->role === 'dosen') {
         return redirect()->route('dosen.dashboard');
@@ -35,21 +30,25 @@ Route::get('/dashboard', function (Request $request) {
     return redirect()->route('mahasiswa.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// 4. Rute Terproteksi (Hanya User yang Login)
 Route::middleware(['auth', 'verified'])->group(function () {
-    
-    // --- Dashboard Mahasiswa ---
-    Route::get('/dashboard-mahasiswa', function () {
-        return Inertia::render('DashboardMahasiswa');
-    })->name('mahasiswa.dashboard');
 
-    // --- Kelompok Rute Dosen ---
+    // --- DASHBOARD MAHASISWA ---
+    Route::get('/dashboard-mahasiswa', [StudentDashboard::class, 'index'])->name('mahasiswa.dashboard');
+    Route::post('/join-class', [StudentDashboard::class, 'joinClass'])->name('class.join');
+    Route::post('/tasks/{taskId}/claim', [StudentDashboard::class, 'claimTask'])->name('tasks.claim');
+    Route::post('/tasks/{taskId}/complete', [StudentDashboard::class, 'completeTask'])->name('tasks.complete');
+
+    // --- KELOMPOK RUTE DOSEN ---
     Route::prefix('dosen')->name('dosen.')->group(function () {
-        // Halaman Utama Dashboard Dosen
+// Halaman Utama Dashboard Dosen
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        
+
         // Rute untuk simpan kelas baru
         Route::post('/kelas', [DashboardController::class, 'storeKelas'])->name('kelas.store');
+        
+        // Rute buatan kamu (pastikan nama controllernya benar ya!)
+        Route::post('/kelompok', [DashboardController::class, 'storeKelompok'])->name('kelompok.store');
+        Route::post('/tambah-anggota', [DashboardController::class, 'addMember'])->name('tambah.anggota');
 
         // Rute untuk melihat detail kelompok tertentu (ID)
         Route::get('/kelompok/{id}', [DashboardController::class, 'showKelompok'])->name('kelompok.show');
@@ -58,11 +57,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/colek', [DashboardController::class, 'sendNudge'])->name('colek');
     });
 
-    // --- Profile Management ---
+    // --- PROFILE ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// 5. Load Rute Otentikasi Bawaan (Login, Logout, dll)
 require __DIR__.'/auth.php';

@@ -7,6 +7,8 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class User extends Authenticatable
 {
@@ -23,7 +25,7 @@ class User extends Authenticatable
         'email',
         'password',
         'nim_nip',
-        'role',    // <-- Tambahan
+        'role',
     ];
 
     /**
@@ -47,5 +49,30 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * RELASI: Tugas yang diambil oleh User ini (sebagai PIC)
+     * Menghubungkan User ke tabel Tasks melalui kolom pic_id
+     */
+    public function myTasks(): HasMany
+    {
+        return $this->hasMany(Task::class, 'pic_id');
+    }
+
+    /**
+     * RELASI: Kelompok di mana User ini bergabung
+     * Menghubungkan User ke Group melalui tabel perantara GroupMember
+     */
+    public function group(): HasOneThrough
+    {
+        return $this->hasOneThrough(
+            Group::class,
+            GroupMember::class,
+            'student_id', // Foreign key di tabel group_members
+            'id',         // Foreign key di tabel groups
+            'id',         // Local key di tabel users
+            'group_id'    // Local key di tabel group_members
+        );
     }
 }
