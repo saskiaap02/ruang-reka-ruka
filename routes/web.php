@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-// Penamaan alias agar tidak bentrok
+// --- BAGIAN ALIAS ---
 use App\Http\Controllers\Dosen\DashboardController as DosenDashboard;
 use App\Http\Controllers\Student\DashboardController as StudentDashboard;
 
@@ -22,7 +22,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisteredUserController::class, 'store']);
 });
 
-// Redirect otomatis setelah login
+// 1. REDIRECTOR OTOMATIS (Setelah Login)
+// Ini gerbang pertama agar akun langsung terarah ke dashboard yang benar
 Route::get('/dashboard', function (Request $request) {
     if ($request->user()->role === 'dosen') {
         return redirect()->route('dosen.dashboard');
@@ -30,32 +31,32 @@ Route::get('/dashboard', function (Request $request) {
     return redirect()->route('mahasiswa.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+
+// 2. SEMUA RUTE TERPROTEKSI (Harus Login)
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // --- DASHBOARD MAHASISWA ---
+    // --- FITUR MAHASISWA ---
+    // Keamanan 'mahasiswa jangan jadi dosen' sudah ada di dalam StudentDashboard::index
     Route::get('/dashboard-mahasiswa', [StudentDashboard::class, 'index'])->name('mahasiswa.dashboard');
     Route::post('/join-class', [StudentDashboard::class, 'joinClass'])->name('class.join');
     Route::post('/tasks/{taskId}/claim', [StudentDashboard::class, 'claimTask'])->name('tasks.claim');
     Route::post('/tasks/{taskId}/complete', [StudentDashboard::class, 'completeTask'])->name('tasks.complete');
 
-    // --- KELOMPOK RUTE DOSEN ---
+
+    // --- FITUR DOSEN ---
+    // Keamanan 'dosen jangan jadi mahasiswa' sudah ada di dalam DosenDashboard::index
     Route::prefix('dosen')->name('dosen.')->group(function () {
-// Halaman Utama Dashboard Dosen
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-        // Rute untuk simpan kelas baru
-        Route::post('/kelas', [DashboardController::class, 'storeKelas'])->name('kelas.store');
+        Route::get('/dashboard', [DosenDashboard::class, 'index'])->name('dashboard');
+        Route::post('/kelas', [DosenDashboard::class, 'storeKelas'])->name('kelas.store');
+        Route::post('/kelompok', [DosenDashboard::class, 'storeKelompok'])->name('kelompok.store');
+        Route::post('/tambah-anggota', [DosenDashboard::class, 'addMember'])->name('tambah.anggota');
         
-        // Rute buatan kamu (pastikan nama controllernya benar ya!)
-        Route::post('/kelompok', [DashboardController::class, 'storeKelompok'])->name('kelompok.store');
-        Route::post('/tambah-anggota', [DashboardController::class, 'addMember'])->name('tambah.anggota');
-
-        // Rute untuk melihat detail kelompok tertentu (ID)
-        Route::get('/kelompok/{id}', [DashboardController::class, 'showKelompok'])->name('kelompok.show');
-
-        // Rute Fitur Colek (Nudge) Mahasiswa
-        Route::post('/colek', [DashboardController::class, 'sendNudge'])->name('colek');
+        // Detail, Audit & Monitoring Kritis
+        Route::get('/kelompok/{id}', [DosenDashboard::class, 'showKelompok'])->name('kelompok.show');
+        Route::post('/audit/{groupId}/{studentId}', [DosenDashboard::class, 'auditStudent'])->name('audit.student');
+        Route::post('/colek', [DosenDashboard::class, 'sendNudge'])->name('colek');
     });
+
 
     // --- PROFILE ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

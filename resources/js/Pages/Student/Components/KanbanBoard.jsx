@@ -15,15 +15,29 @@ export default function KanbanBoard({ tasks, onClaim, onComplete }) {
             </div>
 
             {/* Kolom In Progress */}
-            <div className="bg-slate-100/50 p-4 rounded-3xl min-h-[400px]">
-                <h3 className="font-bold text-blue-500 mb-4">IN PROGRESS</h3>
-                {tasks?.filter(t => t.status === 'in_progress').map(task => (
-                    <div key={task.id} className="bg-white p-4 rounded-2xl mb-3 shadow-sm border-l-4 border-l-blue-500">
-                        <h4 className="font-bold text-sm">{task.judul}</h4>
-                        <button onClick={() => onComplete(task.id)} className="mt-3 w-full py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold">Selesaikan</button>
-                    </div>
-                ))}
+<div className="bg-slate-100/50 p-4 rounded-3xl min-h-[400px]">
+    <h3 className="font-bold text-blue-500 mb-4">IN PROGRESS</h3>
+    {tasks?.filter(t => t.status === 'in_progress').map(task => (
+        <div key={task.id} className="bg-white p-4 rounded-2xl mb-3 shadow-sm border-l-4 border-l-blue-500">
+            <h4 className="font-bold text-sm">{task.judul}</h4>
+            
+            {/* POSISI DI SINI: Muncul di setiap kartu tugas */}
+            <div className="flex items-center gap-2 mt-2">
+                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-[8px] font-bold text-blue-600">
+                    {task.pic_name?.charAt(0)}
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">PIC: {task.pic_name}</span>
             </div>
+
+            <button 
+                onClick={() => onComplete(task.id)} 
+                className="mt-3 w-full py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold"
+            >
+                Selesaikan
+            </button>
+        </div>
+    ))}
+</div>
 
             {/* Kolom Done */}
             <div className="bg-slate-100/50 p-4 rounded-3xl min-h-[400px]">

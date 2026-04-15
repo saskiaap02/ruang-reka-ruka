@@ -9,6 +9,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -52,6 +53,15 @@ class User extends Authenticatable
     }
 
     /**
+     * RELASI: Daftar kelas yang diikuti oleh Mahasiswa (Many to Many)
+     * Digunakan untuk memfilter mahasiswa di dalam kelas tertentu (misal: untuk pembagian kelompok AI)
+     */
+    public function projectClasses(): BelongsToMany
+    {
+        return $this->belongsToMany(ProjectClass::class, 'class_students', 'student_id', 'project_class_id');
+    }
+
+    /**
      * RELASI: Tugas yang diambil oleh User ini (sebagai PIC)
      * Menghubungkan User ke tabel Tasks melalui kolom pic_id
      */
@@ -62,7 +72,7 @@ class User extends Authenticatable
 
     /**
      * RELASI: Kelompok di mana User ini bergabung
-     * Menghubungkan User ke Group melalui tabel perantara GroupMember
+     * Menghubungkan User ke Group secara langsung melalui tabel perantara GroupMember
      */
     public function group(): HasOneThrough
     {
