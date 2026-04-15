@@ -13,7 +13,7 @@ export default function Dashboard({ auth, myClass, myGroup, logs, nudges }) {
 
     const submitJoin = (e) => {
         e.preventDefault();
-        post(route('mahasiswa.joinKelas')); // Pastikan nama route ini sesuai web.php
+        post(route('mahasiswa.joinKelas'));
     };
 
     // 2. Logika untuk Claim Tugas
@@ -88,7 +88,8 @@ export default function Dashboard({ auth, myClass, myGroup, logs, nudges }) {
 
                 {/* ---> BANNER PERINGATAN COLEKAN <--- */}
                 {nudges && nudges.length > 0 && (
-                    <div className="mb-8 bg-red-50 border-l-4 border-red-500 p-5 rounded-r-2xl shadow-sm flex justify-between items-center animate-pulse border border-red-100">
+                    /* FIX: Menghapus border-red-100 yang konflik dengan border-red-500 */
+                    <div className="mb-8 bg-red-50 border-l-4 border-red-500 p-5 rounded-r-2xl shadow-sm flex justify-between items-center animate-pulse">
                         <div className="flex gap-4 items-center">
                             <span className="text-2xl">⚠️</span>
                             <div>
