@@ -60,6 +60,7 @@ class DashboardController extends Controller
             $logText = $latestLog ? $latestLog->user_name . ' melakukan ' . $latestLog->action_type : 'Belum ada aktivitas';
             $isKritis = false;
             $masalah = '';
+            
             if ($latestLog) {
                 $daysSinceLastLog = Carbon::parse($latestLog->created_at)->diffInDays(Carbon::now());
                 if ($daysSinceLastLog >= 3) {
@@ -228,7 +229,6 @@ class DashboardController extends Controller
     }
 
     /**
-/**
      * Fitur Audit: Memberikan Nilai
      */
     public function auditStudent(Request $request, $groupId, $studentId)
@@ -261,6 +261,5 @@ class DashboardController extends Controller
         ]);
 
         return redirect()->back()->with('message', 'Mahasiswa berhasil dicolek!');
-    }
     }
 }
