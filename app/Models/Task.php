@@ -8,7 +8,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
-    protected $fillable = ['group_id', 'pic_id', 'judul', 'status'];
+    // Tambahkan link_evidence dan completed_at di sini Hil!
+    protected $fillable = [
+        'group_id', 
+        'pic_id', 
+        'judul', 
+        'status', 
+        'link_evidence', 
+        'completed_at'
+    ];
 
     // Relasi ke kelompok asal tugas
     public function group(): BelongsTo
@@ -22,6 +30,7 @@ class Task extends Model
         return $this->belongsTo(User::class, 'pic_id');
     }
 
+    // Riwayat aktivitas khusus tugas ini
     public function logs(): HasMany
     {
         return $this->hasMany(ActivityLog::class);

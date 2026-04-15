@@ -13,25 +13,30 @@ use Carbon\Carbon;
 class DashboardController extends Controller
 {
     /**
-     * Menampilkan Dashboard Utama Dosen
+     * Dashboard Utama Dosen
+     * Menampilkan statistik, monitoring kelompok kritis, dan mahasiswa yang menunggu tim.
      */
     public function index()
     {
+        // PAGAR KEAMANAN: Pastikan hanya Dosen yang bisa akses
+        if (Auth::user()->role !== 'dosen') {
+            return redirect()->route('mahasiswa.dashboard');
+        }
+
         $dosenId = Auth::id();
 
-        // 1. Hitung Total Kelas Aktif
+        // 1. DATA STATISTIK KELAS
         $totalKelasAktif = DB::table('project_classes')
             ->where('dosen_id', $dosenId)
             ->count();
 
-        // 2. Ambil daftar ruang kelas & kode invite
         $daftarKelas = DB::table('project_classes')
             ->where('dosen_id', $dosenId)
             ->select('id', 'mata_kuliah', 'nama_kelas', 'invite_code')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // 3. Ambil semua kelompok dari kelas dosen ini
+        // 2. MONITORING KELOMPOK & LOGIKA KRITIS (Kebanggaan Hilma)
         $groups = DB::table('groups')
             ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
             ->where('project_classes.dosen_id', $dosenId)
@@ -43,12 +48,13 @@ class DashboardController extends Controller
         $kelompokKritis = [];
 
         foreach ($groups as $group) {
-            // Hitung Progress
+            // Hitung Progress Tugas dalam Kelompok
             $totalTasks = DB::table('tasks')->where('group_id', $group->id)->count();
             $doneTasks = DB::table('tasks')->where('group_id', $group->id)->where('status', 'done')->count();
-            $progress = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100) . '%' : '0%';
+            $progressRaw = $totalTasks > 0 ? ($doneTasks / $totalTasks) * 100 : 0;
+            $progress = round($progressRaw) . '%';
 
-            // Log Terakhir
+            // Ambil Log Aktivitas Terakhir
             $latestLog = DB::table('activity_logs')
                 ->join('users', 'activity_logs.user_id', '=', 'users.id')
                 ->where('activity_logs.group_id', $group->id)
@@ -57,8 +63,8 @@ class DashboardController extends Controller
                 ->first();
 
             $logText = $latestLog ? $latestLog->user_name . ' melakukan ' . $latestLog->action_type : 'Belum ada aktivitas';
-
-            // Logika Kritis (Warning AI)
+            
+            // Logika Penentuan Status Kritis (Pasif >= 3 Hari)
             $isKritis = false;
             $masalah = '';
             if ($latestLog) {
@@ -82,21 +88,42 @@ class DashboardController extends Controller
             ];
 
             if ($isKritis) {
-                $kelompokKritis[] = ['id' => $group->id, 'nama' => $group->nama_kelompok, 'masalah' => $masalah];
+                $kelompokKritis[] = [
+                    'id' => $group->id, 
+                    'nama' => $group->nama_kelompok, 
+                    'masalah' => $masalah
+                ];
             }
         }
+
+        // 3. INTEGRASI MAHASISWA: Ambil Mahasiswa yang sudah join kelas tapi BELUM masuk tim
+        $mahasiswaTanpaKelompok = DB::table('class_students')
+            ->join('users', 'class_students.student_id', '=', 'users.id')
+            ->join('project_classes', 'class_students.project_class_id', '=', 'project_classes.id')
+            ->where('project_classes.dosen_id', $dosenId)
+            ->where('users.role', 'mahasiswa') // PENYARING: Pastikan Dosen tidak muncul di sini
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('group_members')
+                    ->join('groups', 'group_members.group_id', '=', 'groups.id')
+                    ->whereRaw('group_members.student_id = users.id')
+                    ->whereRaw('groups.project_class_id = project_classes.id');
+            })
+            ->select('users.id', 'users.name', 'project_classes.nama_kelas')
+            ->get();
 
         return Inertia::render('Dosen/Dashboard', [
             'totalKelasAktif' => $totalKelasAktif,
             'totalKelompok' => $totalKelompok,
             'kelompokKritis' => $kelompokKritis,
             'daftarKelompok' => $daftarKelompok,
-            'daftarKelas' => $daftarKelas
+            'daftarKelas' => $daftarKelas,
+            'mahasiswaTanpaKelompok' => $mahasiswaTanpaKelompok
         ]);
     }
 
     /**
-     * Menyimpan Kelas Baru
+     * Membuat Ruang Kelas Baru
      */
     public function storeKelas(Request $request)
     {
@@ -124,24 +151,72 @@ class DashboardController extends Controller
     }
 
     /**
-     * Menampilkan Detail Kelompok (Audit Log)
+     * Membuat Kelompok Baru dalam Kelas
+     */
+    public function storeKelompok(Request $request)
+    {
+        $request->validate([
+            'project_class_id' => 'required|exists:project_classes,id',
+            'nama_kelompok' => 'required|string|max:255',
+            'project_title' => 'nullable|string|max:255',
+        ]);
+
+        DB::table('groups')->insert([
+            'project_class_id' => $request->project_class_id,
+            'nama_kelompok' => $request->nama_kelompok,
+            'project_title' => $request->project_title,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', 'Kelompok berhasil dibuat!');
+    }
+
+    /**
+     * Menugaskan Mahasiswa ke dalam Tim (Add Member)
+     */
+    public function addMember(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'required|exists:groups,id',
+            'student_id' => 'required|exists:users,id',
+        ]);
+
+        // PENYARING: Pastikan yang dimasukkan beneran punya role mahasiswa
+        $checkUser = DB::table('users')->where('id', $request->student_id)->first();
+        if ($checkUser->role !== 'mahasiswa') {
+            return back()->with('error', 'Hanya mahasiswa yang bisa dimasukkan ke kelompok!');
+        }
+
+        DB::table('group_members')->insert([
+            'group_id' => $request->group_id,
+            'student_id' => $request->student_id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', 'Mahasiswa berhasil dimasukkan ke tim!');
+    }
+
+    /**
+     * Detail Kelompok & Mode Audit Dosen
      */
     public function showKelompok($id)
     {
-        // 1. Ambil Data Kelompok & Kelasnya
         $kelompok = DB::table('groups')
             ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
             ->where('groups.id', $id)
-            ->select('groups.*', 'project_classes.mata_kuliah', 'project_classes.nama_kelas')
+            ->select('groups.*', 'project_classes.mata_kuliah', 'project_classes.nama_kelas', 'project_classes.bobot_dasar', 'project_classes.bobot_audit', 'project_classes.bobot_peer')
             ->first();
 
         if (!$kelompok) abort(404);
 
-        // 2. Ambil Daftar Anggota & Status Terakhir Mereka
+        // Ambil Data Anggota & Aktivitas Mereka (Hanya Mahasiswa)
         $anggota = DB::table('group_members')
             ->join('users', 'group_members.student_id', '=', 'users.id')
             ->where('group_members.group_id', $id)
-            ->select('users.id', 'users.name', 'users.email', 'group_members.nilai_akhir')
+            ->where('users.role', 'mahasiswa') // PENYARING
+            ->select('users.id', 'users.name', 'users.email', 'group_members.nilai_akhir', 'group_members.nilai_audit')
             ->get()
             ->map(function($user) use ($id) {
                 $lastLog = DB::table('activity_logs')
@@ -155,13 +230,15 @@ class DashboardController extends Controller
                 return $user;
             });
 
-        // 3. Ambil Daftar Tugas (Tasks)
+        // Daftar Tugas Beserta Bukti Kerja
         $tasks = DB::table('tasks')
-            ->where('group_id', $id)
+            ->leftJoin('users', 'tasks.pic_id', '=', 'users.id')
+            ->where('tasks.group_id', $id)
+            ->select('tasks.*', 'users.name as pic_name')
             ->orderBy('status', 'desc')
             ->get();
 
-        // 4. Ambil Semua Log Aktivitas Kelompok Ini
+        // Log Aktivitas Lengkap
         $logs = DB::table('activity_logs')
             ->join('users', 'activity_logs.user_id', '=', 'users.id')
             ->where('activity_logs.group_id', $id)
@@ -178,16 +255,33 @@ class DashboardController extends Controller
     }
 
     /**
-     * Mengirim Colekan (Nudge) ke Mahasiswa
+     * Menyimpan Nilai Audit Mahasiswa
+     */
+    public function auditStudent(Request $request, $groupId, $studentId)
+    {
+        $request->validate(['nilai_audit' => 'required|numeric|min:0|max:100']);
+
+        DB::table('group_members')
+            ->where('group_id', $groupId)
+            ->where('student_id', $studentId)
+            ->update([
+                'nilai_audit' => $request->nilai_audit,
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('success', 'Nilai audit berhasil disimpan!');
+    }
+
+    /**
+     * Mengirim Colekan (Nudge) via Database
      */
     public function sendNudge(Request $request)
     {
-        // Pastikan tabel 'nudges' sudah kamu buat di database ya!
         DB::table('nudges')->insert([
             'dosen_id' => Auth::id(),
             'student_id' => $request->student_id,
             'group_id' => $request->group_id,
-            'message' => "Dosen memberikan peringatan karena kamu tidak aktif selama lebih dari 3 hari.",
+            'message' => "Dosen memberikan peringatan karena kamu tidak aktif.",
             'created_at' => now(),
         ]);
 

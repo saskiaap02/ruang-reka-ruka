@@ -5,29 +5,42 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ProjectClass extends Model
 {
     protected $fillable = [
-        'dosen_id', 'kode_mk', 'nama_mk', 
-        'bobot_dasar', 'bobot_audit', 'bobot_peer'
+        'dosen_id', 
+        'mata_kuliah', 
+        'nama_kelas',  
+        'invite_code', 
+        'bobot_dasar', 
+        'bobot_audit', 
+        'bobot_peer'
     ];
 
-    // Relasi ke Dosen (User)
+    /**
+     * RELASI: Siapa dosen pemilik kelas ini
+     */
     public function dosen(): BelongsTo
     {
         return $this->belongsTo(User::class, 'dosen_id');
     }
 
-    // Daftar kelompok di kelas ini
-    public function groups(): HasMany
+    /**
+     * RELASI: Daftar mahasiswa yang sudah join ke kelas ini (Many to Many)
+     * Penting untuk fitur dropdown pilih anggota kelompok & AI Grouping
+     */
+    public function students(): BelongsToMany
     {
-        return $this->hasMany(Group::class);
+        return $this->belongsToMany(User::class, 'class_students', 'project_class_id', 'student_id');
     }
 
-    // Daftar mahasiswa yang join kelas ini
-    public function students(): HasMany
+    /**
+     * RELASI: Daftar kelompok yang ada di bawah kelas ini
+     */
+    public function groups(): HasMany 
     {
-        return $this->hasMany(ClassStudent::class);
+        return $this->hasMany(Group::class);
     }
 }
