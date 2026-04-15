@@ -86,25 +86,27 @@ export default function Dashboard({ auth, myClass, myGroup, logs, nudges }) {
 
             <div className="max-w-7xl mx-auto">
 
-                {/* ---> BANNER PERINGATAN COLEKAN <--- */}
-                {nudges && nudges.length > 0 && (
-                    /* FIX: Menghapus border-red-100 yang konflik dengan border-red-500 */
-                    <div className="mb-8 bg-red-50 border-l-4 border-red-500 p-5 rounded-r-2xl shadow-sm flex justify-between items-center animate-pulse">
+                {/* --- BAGIAN BANNER PERINGATAN COLEKAN (NUDGES) --- */}
+                {nudges && nudges.length > 0 && nudges.map((nudge) => (
+                    <div key={nudge.id} className="mb-8 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-2xl shadow-sm flex justify-between items-center animate-pulse">
                         <div className="flex gap-4 items-center">
                             <span className="text-2xl">⚠️</span>
                             <div>
                                 <h3 className="text-red-800 font-bold text-sm uppercase tracking-wider">Peringatan dari Dosen!</h3>
-                                <p className="text-red-600 text-xs mt-1 leading-relaxed">
-                                    Kamu terdeteksi tidak memiliki riwayat aktivitas (pasif) selama lebih dari 3 hari.
-                                    Dosen telah mengirimkan colekan ke akunmu. Segera perbarui progres tugasmu untuk menghindari pengurangan nilai audit!
-                                </p>
+                                <p className="text-red-600 text-xs mt-1 leading-relaxed">{nudge.message}</p>
                             </div>
                         </div>
-                        <button className="hidden sm:block px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ml-4">
+
+                        <Link
+                            href={route('mahasiswa.colek.read', { id: nudge.id })}
+                            method="post"
+                            as="button"
+                            className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ml-4"
+                        >
                             Saya Mengerti
-                        </button>
+                        </Link>
                     </div>
-                )}
+                ))}
 
                 {/* Header Dashboard */}
                 <div className="flex justify-between items-start mb-10">
