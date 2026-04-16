@@ -61,20 +61,36 @@ export default function AuthenticatedLayout({ user, header, children }) {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
 
-                        {/* Kiri: Tombol Hamburger & Logo */}
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => setIsSidebarOpen(true)} // Tombol ini sekarang hidup!
-                                className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                            </button>
+                        {/* Kiri: Tombol Hamburger & Logo RuKa */}
+<div className="flex items-center gap-4">
+    <button
+        onClick={() => setIsSidebarOpen(true)}
+        className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+    </button>
 
-                            <Link href={route('dosen.dashboard')} className="flex items-center gap-2">
-                                <span className="bg-blue-600 text-white px-2.5 py-1 rounded-lg text-sm font-black tracking-tighter">SIM</span>
-                                <span className="text-xl font-bold text-slate-800 dark:text-white hidden sm:block tracking-tight">ConflictResolve</span>
-                            </Link>
-                        </div>
+    <Link href={route('dosen.dashboard')} className="flex items-center gap-2 group">
+        <div className="flex items-center gap-1.5">
+            <span className="bg-blue-600 text-white px-2 py-1 rounded-lg text-sm font-black tracking-tighter shadow-lg shadow-blue-600/20 group-hover:scale-105 transition-transform">
+                Ru
+            </span>
+            <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tight">
+                Ka.
+            </span>
+        </div>
+        
+        {/* Separator & Label Audit System */}
+        <div className="hidden md:flex items-center">
+            <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-700 mx-2"></div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                Audit System
+            </span>
+        </div>
+    </Link>
+</div>
 
                         {/* Kanan: Profil & Dark Mode */}
                         <div className="flex items-center gap-2 sm:gap-4">
