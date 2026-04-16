@@ -3,7 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\DB; // Tambahkan ini agar DB::table jalan
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -13,7 +13,7 @@ use App\Http\Controllers\Student\DashboardController as StudentDashboard;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes - SIM-CR
+| Web Routes - SIM-CR (Conflict Resolve)
 |--------------------------------------------------------------------------
 */
 
@@ -29,7 +29,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisteredUserController::class, 'store']);
 });
 
-// Redirect otomatis setelah login berdasarkan role
+// 1. REDIRECTOR OTOMATIS (Setelah Login)
+// Gerbang utama untuk mengarahkan user berdasarkan role mereka
 Route::get('/dashboard', function (Request $request) {
     if ($request->user()->role === 'dosen') {
         return redirect()->route('dosen.dashboard');
@@ -37,6 +38,8 @@ Route::get('/dashboard', function (Request $request) {
     return redirect()->route('mahasiswa.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+
+// 2. SEMUA RUTE TERPROTEKSI (Harus Login)
 Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- GRUP RUTE MAHASISWA ---
@@ -46,7 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tasks/{taskId}/claim', [StudentDashboard::class, 'claimTask'])->name('tasks.claim');
         Route::post('/tasks/{taskId}/complete', [StudentDashboard::class, 'completeTask'])->name('tasks.complete');
         
-        // Rute untuk mahasiswa menandai colekan sudah dibaca
+        // Rute untuk menandai colekan (nudge) sudah dibaca
         Route::post('/colek/baca/{id}', function ($id) {
             DB::table('nudges')->where('id', $id)->update(['is_read' => true]);
             return back();
@@ -55,16 +58,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- GRUP RUTE DOSEN ---
     Route::prefix('dosen')->name('dosen.')->group(function () {
-        // Halaman Utama Dashboard Dosen
+        // Dashboard & Manajemen Kelas
         Route::get('/dashboard', [DosenDashboard::class, 'index'])->name('dashboard');
-
-        // Manajemen Kelas
         Route::post('/kelas', [DosenDashboard::class, 'storeKelas'])->name('kelas.store');
         Route::post('/kelompok', [DosenDashboard::class, 'storeKelompok'])->name('kelompok.store');
         Route::post('/tambah-anggota', [DosenDashboard::class, 'addMember'])->name('tambah.anggota');
-
-        // Audit & Monitoring
+        
+        // Audit, Detail & Monitoring Kritis
         Route::get('/kelompok/{id}', [DosenDashboard::class, 'showKelompok'])->name('kelompok.show');
+        Route::post('/audit/{groupId}/{studentId}', [DosenDashboard::class, 'auditStudent'])->name('audit.student');
         Route::post('/colek', [DosenDashboard::class, 'sendNudge'])->name('colek');
     });
 

@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::table('group_members', function (Blueprint $table) {
         $table->decimal('nilai_audit', 5, 2)->default(0)->after('student_id');
-        $table->decimal('nilai_akhir', 5, 2)->default(0)->after('nilai_audit');
         });
     }
 
