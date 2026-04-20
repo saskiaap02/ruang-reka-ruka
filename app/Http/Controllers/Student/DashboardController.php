@@ -17,47 +17,22 @@ use Inertia\Inertia;
 class DashboardController extends Controller
 {
     /**
-     * Tampilan Utama Dashboard Mahasiswa
+     * Tampilan Utama: KATALOG KELAS
      */
     public function index()
     {
         $user = Auth::user();
 
-        // 🛡️ PAGAR KEAMANAN: Jika bukan mahasiswa, tendang ke dashboard dosen
         if ($user->role !== 'mahasiswa') {
             return redirect()->route('dosen.dashboard');
         }
         
-        // 1. Ambil data kelas yang diikuti
-        $joinedClass = ClassStudent::where('student_id', $user->id)
-            ->with('projectClass')
-            ->first();
+        // Ambil SEMUA kelas yang diikuti mahasiswa
+        $joinedClasses = ClassStudent::where('student_id', $user->id)
+            ->with(['projectClass'])
+            ->get();
 
-        // 2. Ambil data kelompok & tugas tim
-        $myGroupInfo = GroupMember::where('student_id', $user->id)
-            ->with(['group.tasks.pic', 'group.projectClass'])
-            ->first();
-
-        // 3. Ambil Log Aktivitas & Tasks Kelompok
-        $logs = [];
-        $tasks = [];
-
-        if ($myGroupInfo) {
-            // Ambil semua tugas dalam kelompok ini untuk Kanban
-            $tasks = Task::where('group_id', $myGroupInfo->group_id)
-                ->with('pic')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            // Ambil log aktivitas tim (untuk logbook otomatis)
-            $logs = ActivityLog::where('group_id', $myGroupInfo->group_id)
-                ->join('users', 'activity_logs.user_id', '=', 'users.id')
-                ->select('activity_logs.*', 'users.name as user_name')
-                ->orderBy('created_at', 'desc')
-                ->get();
-        }
-
-        // 4. Ambil notifikasi colekan (Nudges) yang belum dibaca
+        // Ambil notifikasi colekan (Nudges) yang belum dibaca
         $nudges = DB::table('nudges')
             ->where('student_id', $user->id)
             ->where('is_read', false)
@@ -65,11 +40,52 @@ class DashboardController extends Controller
             ->get();
         
         return Inertia::render('Student/Dashboard', [
-            'myClass' => $joinedClass ? $joinedClass->projectClass : null,
+            'joinedClasses' => $joinedClasses,
+            'nudges'  => $nudges,
+            'myClass' => null, // Penanda sedang di halaman Katalog
+        ]);
+    }
+
+    /**
+     * Tampilan Detail: KANBAN & LOGBOOK PER KELAS
+     */
+    public function showKelas($id)
+    {
+        $user = Auth::user();
+
+        // 1. Ambil data kelas spesifik
+        $myClass = ProjectClass::findOrFail($id);
+
+        // 2. Ambil data kelompok mahasiswa di kelas ini saja
+        $myGroupInfo = GroupMember::where('student_id', $user->id)
+            ->whereHas('group', function($q) use ($id) {
+                $q->where('project_class_id', $id);
+            })
+            ->with(['group.tasks.pic'])
+            ->first();
+
+        $logs = [];
+        $tasks = [];
+
+        if ($myGroupInfo) {
+            $tasks = Task::where('group_id', $myGroupInfo->group_id)
+                ->with('pic')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $logs = ActivityLog::where('group_id', $myGroupInfo->group_id)
+                ->join('users', 'activity_logs.user_id', '=', 'users.id')
+                ->select('activity_logs.*', 'users.name as user_name')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
+        return Inertia::render('Student/Dashboard', [
+            'myClass' => $myClass,
             'myGroup' => $myGroupInfo ? $myGroupInfo->group : null,
             'tasks'   => $tasks,
             'logs'    => $logs,
-            'nudges'  => $nudges,
+            'joinedClasses' => null, // Penanda sedang di halaman Detail
         ]);
     }
 
@@ -79,16 +95,15 @@ class DashboardController extends Controller
     public function joinClass(Request $request)
     {
         $user = Auth::user();
-        if ($user->role !== 'mahasiswa') {
-            return back()->with('error', 'Dosen tidak boleh bergabung sebagai mahasiswa!');
-        }
-
-        $request->validate(['invite_code' => 'required|string|size:6']);
+        
+        $request->validate([
+            'invite_code' => 'required|string|size:6'
+        ]);
         
         $class = ProjectClass::where('invite_code', strtoupper($request->invite_code))->first();
 
         if (!$class) {
-            return back()->with('error', 'Kode tidak valid atau kelas tidak ditemukan!');
+            return back()->with('error', 'Kode kelas tidak ditemukan!');
         }
 
         ClassStudent::firstOrCreate([
@@ -96,142 +111,93 @@ class DashboardController extends Controller
             'student_id' => $user->id
         ]);
 
-        // Opsional: Langsung masukkan ke kelompok pertama jika ada di kelas tersebut
-        $group = Group::where('project_class_id', $class->id)->first();
-        if ($group) {
-            GroupMember::firstOrCreate([
-                'group_id' => $group->id, 
-                'student_id' => $user->id
-            ]);
-        }
-
-        return redirect()->route('mahasiswa.dashboard')->with('success', 'Berhasil join kelas!');
+        return redirect()->route('mahasiswa.dashboard')->with('success', 'Berhasil bergabung!');
     }
 
     /**
-     * [CRUD] Tambah Tugas Baru (Reka Tugas)
+     * [CRUD] Tambah Tugas Baru (Reka Tugas) dengan File Upload
      */
     public function storeTask(Request $request)
     {
+        // 1. Validasi Input: Judul wajib, status wajib, file opsional
         $request->validate([
             'group_id' => 'required',
             'title' => 'required|string|max:255',
-            'status' => 'required|in:backlog,in_progress,done'
+            'status' => 'required',
+            'attachment' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,zip|max:5120', // Maks 5MB
         ]);
 
+        // 2. Logika Simpan File
+        $filePath = null;
+        if ($request->hasFile('attachment')) {
+            // File akan masuk ke storage/app/public/tasks
+            $filePath = $request->file('attachment')->store('tasks', 'public');
+        }
+
+        // 3. Simpan ke Database
         $task = Task::create([
             'group_id' => $request->group_id,
             'pic_id'   => Auth::id(),
             'judul'    => $request->title,
             'status'   => strtolower($request->status),
-        ]);
-
-        ActivityLog::create([
-            'user_id'     => Auth::id(),
-            'group_id'    => $request->group_id,
-            'task_id'     => $task->id,
-            'action_type' => 'create_task',
-            'description' => 'Merekam tugas baru: ' . $request->title
+            'file_path' => $filePath, // Simpan path file-nya
         ]);
 
         return back()->with('success', 'Tugas berhasil ditambahkan!');
     }
 
-    /**
-     * [CRUD] Update Status / Pindah Kolom Kanban
-     */
-    public function updateTaskStatus(Request $request, $id)
-    {
-        $task = Task::findOrFail($id);
-        $oldStatus = $task->status;
-        $newStatus = strtolower($request->status);
+public function updateTaskStatus(Request $request, $id)
+{
+    $task = Task::findOrFail($id);
+    $oldStatus = $task->status; 
+    $newStatus = strtolower($request->status);
 
-        $task->update(['status' => $newStatus]);
+    // 1. Handle File (Bukti Kerja)
+    // Kalau ada file baru, simpan. Kalau nggak ada, pakai file yang lama.
+    $filePath = $task->file_path;
+    if ($request->hasFile('attachment')) {
+        $filePath = $request->file('attachment')->store('tasks', 'public');
+    }
 
-        ActivityLog::create([
+    // 2. Update Data Tugas
+    $task->update([
+        'status'    => $newStatus,
+        // Kita pakai 'judul' karena di React kamu pakai setData('title', ...) untuk catatan
+        'judul'     => $request->title ?? $task->judul, 
+        'file_path' => $filePath,
+    ]);
+
+    // 3. Trigger Logbook (Hanya jika status berubah jadi DONE)
+    // Tambahan safety: && $oldStatus !== 'done' biar kalau di-submit ulang nggak nyampah di log
+    if ($newStatus === 'done' && $oldStatus !== 'done') {
+        \App\Models\ActivityLog::create([
             'user_id'     => Auth::id(),
             'group_id'    => $task->group_id,
             'task_id'     => $task->id,
-            'action_type' => 'move_task',
-            'description' => "Memindahkan '{$task->judul}' dari {$oldStatus} ke {$newStatus}"
+            'action_type' => 'task_completed',
+            'description' => "Menyelesaikan tugas: {$task->judul}"
         ]);
-
-        return back()->with('success', 'Status tugas diperbarui!');
     }
 
-    /**
-     * [CRUD] Hapus Tugas
-     */
+    return back();
+}
     public function deleteTask($id)
     {
-        $task = Task::findOrFail($id);
-        
-        ActivityLog::create([
-            'user_id'     => Auth::id(),
-            'group_id'    => $task->group_id,
-            'action_type' => 'delete_task',
-            'description' => "Menghapus tugas: " . $task->judul
-        ]);
-
-        $task->delete();
-
-        return back()->with('success', 'Tugas berhasil dihapus.');
+        Task::findOrFail($id)->delete();
+        return back();
     }
 
-    /**
-     * Fitur Ambil Tugas (Claim Task)
-     */
-    public function claimTask($taskId)
-    {
-        $task = Task::findOrFail($taskId);
-        
-        $task->update([
-            'pic_id' => Auth::id(), 
-            'status' => 'in_progress'
-        ]);
-
-        ActivityLog::create([
-            'user_id'     => Auth::id(),
-            'group_id'    => $task->group_id,
-            'task_id'     => $task->id,
-            'action_type' => 'claim_task',
-            'description' => 'Mengambil alih tanggung jawab tugas: ' . $task->judul
-        ]);
-
-        return back()->with('success', 'Tugas berhasil kamu ambil!');
-    }
-
-    /**
-     * Fitur Selesaikan Tugas (Evidence Submission)
-     */
     public function completeTask(Request $request, $taskId)
     {
-        $request->validate([
-            'link_evidence' => 'required|url'
-        ]);
-
-        $task = Task::findOrFail($taskId);
-        
-        $task->update([
-            'status'        => 'done',
+        $request->validate(['link_evidence' => 'required|url']);
+        Task::findOrFail($taskId)->update([
+            'status' => 'done',
             'link_evidence' => $request->link_evidence,
-            'completed_at'  => now(),
+            'completed_at' => now(),
         ]);
-
-        ActivityLog::create([
-            'user_id'     => Auth::id(),
-            'group_id'    => $task->group_id,
-            'task_id'     => $task->id,
-            'action_type' => 'complete_task',
-            'description' => 'Menyelesaikan tugas: ' . $task->judul . '. Bukti: ' . $request->link_evidence
-        ]);
-
-        return back()->with('success', 'Tugas selesai! Jejak digitalmu sudah terekam.');
+        return back();
     }
 
-    /**
-     * Menandai colek sudah dibaca
-     */
     public function markNudgeRead($id)
     {
         DB::table('nudges')->where('id', $id)->update(['is_read' => true]);

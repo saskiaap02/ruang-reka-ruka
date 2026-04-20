@@ -152,6 +152,72 @@ class DashboardController extends Controller
     }
 
     /**
+     * Menampilkan Detail Satu Ruang Kelas (Monitoring Per Kelas)
+     */
+    public function showKelas($id)
+    {
+        $dosenId = Auth::id();
+
+        // 1. Ambil Data Detail Kelas
+        $kelas = DB::table('project_classes')
+            ->where('id', $id)
+            ->where('dosen_id', $dosenId)
+            ->first();
+
+        if (!$kelas) abort(404);
+
+        // 2. Ambil Daftar Kelompok KHUSUS di kelas ini
+        $groups = DB::table('groups')
+            ->where('project_class_id', $id)
+            ->get();
+
+        $daftarKelompok = [];
+        foreach ($groups as $group) {
+            $totalTasks = DB::table('tasks')->where('group_id', $group->id)->count();
+            $doneTasks = DB::table('tasks')->where('group_id', $group->id)->where('status', 'done')->count();
+            $progress = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100) : 0;
+
+            $latestLog = DB::table('activity_logs')
+                ->join('users', 'activity_logs.user_id', '=', 'users.id')
+                ->where('activity_logs.group_id', $group->id)
+                ->select('activity_logs.action_type', 'users.name', 'activity_logs.created_at')
+                ->orderBy('activity_logs.created_at', 'desc')
+                ->first();
+
+            $isKritis = $latestLog ? Carbon::parse($latestLog->created_at)->diffInDays(now()) >= 3 : true;
+
+            $daftarKelompok[] = [
+                'id' => $group->id,
+                'nama' => $group->nama_kelompok,
+                'proyek' => $group->project_title ?? 'Judul belum ditentukan',
+                'status' => $isKritis ? 'Kritis' : 'Aman',
+                'progress' => $progress . '%',
+                'log_terakhir' => $latestLog ? $latestLog->name . ' melakukan ' . $latestLog->action_type : 'Belum ada aktivitas'
+            ];
+        }
+
+        // 3. Ambil Mahasiswa Waiting List KHUSUS kelas ini
+        $mahasiswaTanpaKelompok = DB::table('class_students')
+            ->join('users', 'class_students.student_id', '=', 'users.id')
+            ->where('class_students.project_class_id', $id)
+            ->whereNotExists(function ($query) use ($id) {
+                $query->select(DB::raw(1))
+                    ->from('group_members')
+                    ->join('groups', 'group_members.group_id', '=', 'groups.id')
+                    ->whereRaw('group_members.student_id = users.id')
+                    ->where('groups.project_class_id', $id);
+            })
+            ->select('users.id', 'users.name')
+            ->get();
+
+        return Inertia::render('Dosen/ShowKelas', [
+            'kelas' => $kelas,
+            'daftarKelompok' => $daftarKelompok,
+            'mahasiswaTanpaKelompok' => $mahasiswaTanpaKelompok
+        ]);
+    }
+
+    /**
      * Membuat Kelompok Baru dalam Kelas
      */
     public function storeKelompok(Request $request)

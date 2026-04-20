@@ -13,7 +13,7 @@ use App\Http\Controllers\Student\DashboardController as StudentDashboard;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes - SIM-CR (Conflict Resolve)
+| Web Routes - Ruang Reka (RuKa)
 |--------------------------------------------------------------------------
 */
 
@@ -30,7 +30,6 @@ Route::middleware('guest')->group(function () {
 });
 
 // 1. REDIRECTOR OTOMATIS (Setelah Login)
-// Gerbang utama untuk mengarahkan user berdasarkan role mereka
 Route::get('/dashboard', function (Request $request) {
     if ($request->user()->role === 'dosen') {
         return redirect()->route('dosen.dashboard');
@@ -44,16 +43,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- GRUP RUTE MAHASISWA ---
     Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
+        // Katalog & Detail
         Route::get('/dashboard', [StudentDashboard::class, 'index'])->name('dashboard');
-        Route::post('/join-class', [StudentDashboard::class, 'joinClass'])->name('class.join');
-        Route::post('/tasks/{taskId}/claim', [StudentDashboard::class, 'claimTask'])->name('tasks.claim');
+        Route::get('/kelas/{id}', [StudentDashboard::class, 'showKelas'])->name('kelas.show');
+        
+        // Gabung Kelas
+        Route::post('/join-class', [StudentDashboard::class, 'joinClass'])->name('join-class');
+        
+        // --- TUGAS (KANBAN SYSTEM RUANG REKA) ---
+        // Simpan tugas baru (Reka Tugas)
+        Route::post('/tasks/store', [StudentDashboard::class, 'storeTask'])->name('task.store');
+        
+        // Update status (Tarik kartu: Backlog -> In Progress -> Done)
+        Route::post('/tasks/{id}/status', [StudentDashboard::class, 'updateTaskStatus'])->name('task.update-status');
+        
+        // Hapus tugas (Tombol X merah)
+        Route::delete('/tasks/{id}', [StudentDashboard::class, 'deleteTask'])->name('task.delete');
+        
+        // Selesaikan tugas (Tombol Submit di In Progress)
         Route::post('/tasks/{taskId}/complete', [StudentDashboard::class, 'completeTask'])->name('tasks.complete');
         
-        // Rute untuk menandai colekan (nudge) sudah dibaca
-        Route::post('/colek/baca/{id}', function ($id) {
-            DB::table('nudges')->where('id', $id)->update(['is_read' => true]);
-            return back();
-        })->name('colek.read');
+        // Notifikasi / Colek
+        Route::post('/colek/baca/{id}', [StudentDashboard::class, 'markNudgeRead'])->name('colek.read');
     });
 
     // --- GRUP RUTE DOSEN ---
@@ -61,6 +72,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Dashboard & Manajemen Kelas
         Route::get('/dashboard', [DosenDashboard::class, 'index'])->name('dashboard');
         Route::post('/kelas', [DosenDashboard::class, 'storeKelas'])->name('kelas.store');
+        Route::get('/kelas/{id}', [DosenDashboard::class, 'showKelas'])->name('kelas.show');
+
+        // Manajemen Kelompok & Anggota
         Route::post('/kelompok', [DosenDashboard::class, 'storeKelompok'])->name('kelompok.store');
         Route::post('/tambah-anggota', [DosenDashboard::class, 'addMember'])->name('tambah.anggota');
         
