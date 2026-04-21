@@ -153,7 +153,7 @@ export default function Welcome({ auth }) {
                         <div className="relative z-10 max-w-3xl mx-auto space-y-8">
                             <h2 className="text-4xl md:text-5xl font-black text-white leading-tight">Penilaian Akhir <br />yang Sangat Objektif</h2>
                             <p className="text-slate-400 text-lg leading-relaxed">
-                                Tidak ada lagi nilai pukul rata. Sistem mengalkulasi <i className="text-blue-400">Auto-Grading</i> berdasarkan Nilai Dasar Kelompok (dari Dosen), Bobot Audit (Jejak Sistem), dan Peer Review (Penilaian antar teman). Siap diekspor ke SIAKAD.
+                                Tidak ada lagi nilai pukul rata. Sistem mengalkulasi <i className="text-blue-400">Auto-Grading</i> secara objektif berdasarkan Nilai Dasar Kelompok (dari Dosen) dan Bobot Audit (Jejak Aktivitas Sistem). Data akurat dan siap diekspor ke SIAKAD.
                             </p>
 
                             <div className="flex justify-center gap-4 pt-8">
