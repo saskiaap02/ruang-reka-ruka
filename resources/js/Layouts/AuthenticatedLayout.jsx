@@ -44,7 +44,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
                 ></div>
             )}
 
-            {/* --- SIDEBAR DRAWER (Sekarang Sinkron dengan Mode Terang/Gelap) --- */}
+            {/* --- SIDEBAR DRAWER --- */}
             <aside className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-[#0f172a] border-r border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 z-50 transform transition-transform duration-300 shadow-2xl dark:shadow-[5px_0_30px_rgba(0,0,0,0.5)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
                 {/* Header Sidebar */}
@@ -62,7 +62,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
                 <nav className="p-4 space-y-1.5">
                     <p className="text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-500 mb-3 px-3 uppercase">Menu Utama</p>
 
-                    {/* Menu 1: Dashboard Kelas (Aktif jika di path /dashboard) */}
+                    {/* Menu 1: Dashboard Kelas */}
                     <Link
                         href={user.role === 'dosen' ? route('dosen.dashboard') : route('mahasiswa.dashboard')}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${url.includes('/dashboard')
@@ -75,21 +75,14 @@ export default function AuthenticatedLayout({ user, header, children }) {
                         <span className="text-sm">Dashboard Kelas</span>
                     </Link>
 
-                    {/* Menu 2: Kalender & Tugas (Sebagai tambahan fitur logis) */}
-                    <Link
-                        href="#" // Bisa diganti route('tasks.index') nanti kalau fiturnya sudah ada
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium"
-                        onClick={() => setIsSidebarOpen(false)}
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        <span className="text-sm">Kalender & Tugas</span>
-                    </Link>
+                    {/* FITUR KALENDER DIHAPUS DARI SINI */}
 
-                    <div className="my-4 border-t border-slate-100 dark:border-slate-800"></div>
+                    {/* Spasi ekstra sebelum Pengaturan agar rapi */}
+                    <div className="pt-4"></div>
 
                     <p className="text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-500 mb-3 px-3 uppercase">Pengaturan</p>
 
-                    {/* Menu 3: Profil & Pengaturan */}
+                    {/* Menu 2: Profil & Pengaturan */}
                     <Link
                         href={route('profile.edit')}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${url.includes('/profile')
@@ -102,7 +95,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
                         <span className="text-sm">Pengaturan Akun</span>
                     </Link>
 
-                    {/* Menu 4: Logout (Merah) */}
+                    {/* Menu 3: Logout (Merah) */}
                     <Link
                         href={route('logout')}
                         method="post"
