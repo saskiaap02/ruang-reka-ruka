@@ -32,10 +32,10 @@ class DashboardController extends Controller
             ->with(['projectClass'])
             ->get();
 
-        // Ambil notifikasi colekan (Nudges) yang belum dibaca
+        // REVISI: Ambil SEMUA notifikasi colekan (Nudges) tanpa difilter is_read
+        // Tujuannya agar riwayat lama tetap bisa tampil di menu Lonceng
         $nudges = DB::table('nudges')
             ->where('student_id', $user->id)
-            ->where('is_read', false)
             ->orderBy('created_at', 'desc')
             ->get();
         
@@ -43,6 +43,9 @@ class DashboardController extends Controller
             'joinedClasses' => $joinedClasses,
             'nudges'  => $nudges,
             'myClass' => null, // Penanda sedang di halaman Katalog
+            'myGroup' => null,
+            'tasks'   => [],
+            'logs'    => []
         ]);
     }
 
@@ -80,12 +83,20 @@ class DashboardController extends Controller
                 ->get();
         }
 
+        // REVISI: Tambahkan pemanggilan Nudges di sini juga
+        // Agar notifikasi dan lonceng tetap berfungsi saat mahasiswa di dalam kelas
+        $nudges = DB::table('nudges')
+            ->where('student_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return Inertia::render('Student/Dashboard', [
             'myClass' => $myClass,
             'myGroup' => $myGroupInfo ? $myGroupInfo->group : null,
             'tasks'   => $tasks,
             'logs'    => $logs,
             'joinedClasses' => null, // Penanda sedang di halaman Detail
+            'nudges'  => $nudges,
         ]);
     }
 
@@ -146,41 +157,42 @@ class DashboardController extends Controller
         return back()->with('success', 'Tugas berhasil ditambahkan!');
     }
 
-public function updateTaskStatus(Request $request, $id)
-{
-    $task = Task::findOrFail($id);
-    $oldStatus = $task->status; 
-    $newStatus = strtolower($request->status);
+    public function updateTaskStatus(Request $request, $id)
+    {
+        $task = Task::findOrFail($id);
+        $oldStatus = $task->status; 
+        $newStatus = strtolower($request->status);
 
-    // 1. Handle File (Bukti Kerja)
-    // Kalau ada file baru, simpan. Kalau nggak ada, pakai file yang lama.
-    $filePath = $task->file_path;
-    if ($request->hasFile('attachment')) {
-        $filePath = $request->file('attachment')->store('tasks', 'public');
-    }
+        // 1. Handle File (Bukti Kerja)
+        // Kalau ada file baru, simpan. Kalau nggak ada, pakai file yang lama.
+        $filePath = $task->file_path;
+        if ($request->hasFile('attachment')) {
+            $filePath = $request->file('attachment')->store('tasks', 'public');
+        }
 
-    // 2. Update Data Tugas
-    $task->update([
-        'status'    => $newStatus,
-        // Kita pakai 'judul' karena di React kamu pakai setData('title', ...) untuk catatan
-        'judul'     => $request->title ?? $task->judul, 
-        'file_path' => $filePath,
-    ]);
-
-    // 3. Trigger Logbook (Hanya jika status berubah jadi DONE)
-    // Tambahan safety: && $oldStatus !== 'done' biar kalau di-submit ulang nggak nyampah di log
-    if ($newStatus === 'done' && $oldStatus !== 'done') {
-        \App\Models\ActivityLog::create([
-            'user_id'     => Auth::id(),
-            'group_id'    => $task->group_id,
-            'task_id'     => $task->id,
-            'action_type' => 'task_completed',
-            'description' => "Menyelesaikan tugas: {$task->judul}"
+        // 2. Update Data Tugas
+        $task->update([
+            'status'    => $newStatus,
+            // Kita pakai 'judul' karena di React kamu pakai setData('title', ...) untuk catatan
+            'judul'     => $request->title ?? $task->judul, 
+            'file_path' => $filePath,
         ]);
+
+        // 3. Trigger Logbook (Hanya jika status berubah jadi DONE)
+        // Tambahan safety: && $oldStatus !== 'done' biar kalau di-submit ulang nggak nyampah di log
+        if ($newStatus === 'done' && $oldStatus !== 'done') {
+            \App\Models\ActivityLog::create([
+                'user_id'     => Auth::id(),
+                'group_id'    => $task->group_id,
+                'task_id'     => $task->id,
+                'action_type' => 'task_completed',
+                'description' => "Menyelesaikan tugas: {$task->judul}"
+            ]);
+        }
+
+        return back();
     }
 
-    return back();
-}
     public function deleteTask($id)
     {
         Task::findOrFail($id)->delete();
