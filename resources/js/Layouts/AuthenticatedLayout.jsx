@@ -262,7 +262,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
             )}
 
             {/* --- KONTEN UTAMA --- */}
-            <main className="flex-1 relative z-0">
+            <main className="flex-1">
                 {children}
             </main>
         </div>
