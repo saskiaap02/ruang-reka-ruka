@@ -104,26 +104,30 @@ class DashboardController extends Controller
      * Fitur Join Kelas via Kode Invite
      */
     public function joinClass(Request $request)
-    {
-        $user = Auth::user();
-        
-        $request->validate([
-            'invite_code' => 'required|string|size:6'
-        ]);
-        
-        $class = ProjectClass::where('invite_code', strtoupper($request->invite_code))->first();
+{
+    // 1. Cari kelas berdasarkan kode yang diinput Hilma/Mahasiswa
+    $class = DB::table('project_classes')->where('invite_code', $request->invite_code)->first();
 
-        if (!$class) {
-            return back()->with('error', 'Kode kelas tidak ditemukan!');
-        }
-
-        ClassStudent::firstOrCreate([
-            'project_class_id' => $class->id, 
-            'student_id' => $user->id
-        ]);
-
-        return redirect()->route('mahasiswa.dashboard')->with('success', 'Berhasil bergabung!');
+    if (!$class) {
+        return back()->with('error', 'Waduh, kode kelasnya salah tuh!');
     }
+
+    // 2. Daftarkan mahasiswa ke kelas dengan status 'pending'
+    // Menggunakan updateOrInsert biar kalau dia klik dua kali nggak error
+    DB::table('class_students')->updateOrInsert(
+        [
+            'student_id' => Auth::id(),
+            'project_class_id' => $class->id
+        ],
+        [
+            'status' => 'pending', // <--- Menahan mahasiswa di ruang tunggu
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]
+    );
+
+    return back()->with('message', 'Permintaan gabung sudah dikirim! Tunggu dosen approve ya.');
+}
 
     /**
      * [CRUD] Tambah Tugas Baru (Reka Tugas) dengan File Upload

@@ -73,6 +73,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard', [DosenDashboard::class, 'index'])->name('dashboard');
         Route::post('/kelas', [DosenDashboard::class, 'storeKelas'])->name('kelas.store');
         Route::get('/kelas/{id}', [DosenDashboard::class, 'showKelas'])->name('kelas.show');
+        Route::post('/tambah-approve', [DosenDashboard::class, 'approveStudent'])->name('tambah.approve');
+        Route::post('/ai-generate-plot/{classId}', [DosenDashboard::class, 'generateAIPlan'])->name('ai.generate');
 
         // Manajemen Kelompok & Anggota
         Route::post('/kelompok', [DosenDashboard::class, 'storeKelompok'])->name('kelompok.store');
@@ -89,5 +91,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-
 require __DIR__.'/auth.php';

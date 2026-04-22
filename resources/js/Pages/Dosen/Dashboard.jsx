@@ -9,6 +9,7 @@ import CreateClassModal from './Partials/CreateClassModal';
 
 export default function Dashboard({ auth, totalKelasAktif, totalKelompok, kelompokKritis, daftarKelompok, daftarKelas, mahasiswaTanpaKelompok }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    console.log("Daftar Mahasiswa Ready:", mahasiswaTanpaKelompok);
 
     // Form Hooks
     const classForm = useForm({ 
