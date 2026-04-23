@@ -177,28 +177,37 @@ class DashboardController extends Controller
     public function updateTaskStatus(Request $request, $id)
     {
         $task = Task::findOrFail($id);
+
+        // [KEAMANAN] Pastikan mahasiswa berada di kelompok yang sama dengan tugas ini
+        $isMyGroup = GroupMember::where('student_id', Auth::id())
+                        ->where('group_id', $task->group_id)
+                        ->exists();
+
+        if (!$isMyGroup) {
+            return back()->with('error', 'Akses ditolak! Kamu tidak bisa mengubah tugas kelompok lain.');
+        }
+
         $oldStatus = $task->status; 
         $newStatus = strtolower($request->status);
 
-        // 1. Handle File (Bukti Kerja)
-        // Kalau ada file baru, simpan. Kalau nggak ada, pakai file yang lama.
+        // 1. Handle File (Bukti Kerja) - Dibuat konsisten dengan metode storeTask
         $filePath = $task->file_path;
         if ($request->hasFile('attachment')) {
-            $filePath = $request->file('attachment')->store('tasks', 'public');
+            $file = $request->file('attachment');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('tasks', $fileName, 'public'); 
         }
 
         // 2. Update Data Tugas
         $task->update([
             'status'    => $newStatus,
-            // Kita pakai 'judul' karena di React kamu pakai setData('title', ...) untuk catatan
             'judul'     => $request->title ?? $task->judul, 
             'file_path' => $filePath,
         ]);
 
         // 3. Trigger Logbook (Hanya jika status berubah jadi DONE)
-        // Tambahan safety: && $oldStatus !== 'done' biar kalau di-submit ulang nggak nyampah di log
         if ($newStatus === 'done' && $oldStatus !== 'done') {
-            \App\Models\ActivityLog::create([
+            ActivityLog::create([ 
                 'user_id'     => Auth::id(),
                 'group_id'    => $task->group_id,
                 'task_id'     => $task->id,
@@ -215,8 +224,19 @@ class DashboardController extends Controller
      */
     public function deleteTask($id)
     {
-        Task::findOrFail($id)->delete();
-        return back();
+        $task = Task::findOrFail($id);
+
+        // [KEAMANAN] Cek kepemilikan kelompok sebelum menghapus
+        $isMyGroup = GroupMember::where('student_id', Auth::id())
+                        ->where('group_id', $task->group_id)
+                        ->exists();
+
+        if (!$isMyGroup) {
+            return back()->with('error', 'Akses ditolak! Kamu tidak bisa menghapus tugas kelompok lain.');
+        }
+
+        $task->delete();
+        return back()->with('success', 'Tugas berhasil dihapus.');
     }
 
     /**
@@ -224,16 +244,24 @@ class DashboardController extends Controller
      */
     public function completeTask(Request $request, $taskId)
     {
-        // Sesuaikan validasi dengan apa yang dikirim Saskia saat submitProgress
         $request->validate([
-            'title' => 'nullable|string', // Detail progress yang diketik
+            'title' => 'nullable|string', 
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar,doc,docx,xlsx,xls|max:5120',
         ]);
 
         $task = Task::findOrFail($taskId);
         
+        // [KEAMANAN] Cek kepemilikan kelompok
+        $isMyGroup = GroupMember::where('student_id', Auth::id())
+                        ->where('group_id', $task->group_id)
+                        ->exists();
+
+        if (!$isMyGroup) {
+            return back()->with('error', 'Akses ditolak!');
+        }
+        
         // Proses Upload File baru (jika ada)
-        $filePath = $task->file_path; // Default: pertahankan file lama
+        $filePath = $task->file_path; 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $fileName = time() . '_' . $file->getClientOriginalName();
@@ -246,7 +274,6 @@ class DashboardController extends Controller
             'completed_at'  => now(),
         ]);
 
-        // Catat di logbook detail progress yang dikerjakan
         $detailProgress = $request->title ? ' Detail: ' . $request->title : '';
 
         ActivityLog::create([
@@ -267,5 +294,51 @@ class DashboardController extends Controller
     {
         DB::table('nudges')->where('id', $id)->update(['is_read' => true]);
         return back();
+    }
+
+    /**
+     * Menyimpan skor Peer Review dari Mahasiswa
+     */
+    public function ratePeer(Request $request, $id)
+    {
+        // 1. Validasi input: Skor wajib diisi, angka, dan antara 20 sampai 100
+        $request->validate([
+            'score' => 'required|integer|min:20|max:100',
+        ]);
+
+        // 2. Cari data peer review berdasarkan ID yang dikirim
+        $review = DB::table('peer_reviews')->where('id', $id)->first();
+
+        // Cek apakah data ada
+        if (!$review) {
+            return back()->with('error', 'Data penilaian tidak ditemukan.');
+        }
+
+        // 3. KEAMANAN: Pastikan mahasiswa yang login ADALAH reviewer_id yang sah
+        if ($review->reviewer_id !== Auth::id()) {
+            return back()->with('error', 'Akses ditolak! Kamu tidak berhak memanipulasi penilaian ini.');
+        }
+
+        // 4. Update skor ke dalam database
+        DB::table('peer_reviews')
+            ->where('id', $id)
+            ->update([
+                'score'      => $request->score,
+                'updated_at' => now(),
+            ]);
+
+        // Opsional: Catat ke Activity Log bahwa mahasiswa ini sudah menilai temannya
+        // Ini bikin Heatmap dosen jadi lebih akurat
+        DB::table('activity_logs')->insert([
+            'user_id'     => Auth::id(),
+            'group_id'    => $review->group_id,
+            'task_id'     => null,
+            'action_type' => 'peer_review',
+            'description' => 'Melakukan pengisian Peer Review untuk rekan setim.',
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+
+        return back()->with('success', 'Penilaian berhasil disimpan. Terima kasih atas kejujuranmu!');
     }
 }
