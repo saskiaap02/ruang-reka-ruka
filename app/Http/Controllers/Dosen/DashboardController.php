@@ -584,4 +584,66 @@ class DashboardController extends Controller
 
         return redirect()->back()->with('message', 'Mahasiswa berhasil dicolek!');
     }
+
+    /**
+     * Membuka Sesi Peer Review untuk suatu Kelompok
+     */
+    public function openPeerReview($groupId)
+    {
+        $group = DB::table('groups')->where('id', $groupId)->first();
+
+        if (!$group) {
+            return back()->with('error', 'Kelompok tidak ditemukan.');
+        }
+
+        // Ambil semua anggota di kelompok ini
+        $members = DB::table('group_members')
+            ->where('group_id', $groupId)
+            ->pluck('student_id')
+            ->toArray();
+
+        if (count($members) < 2) {
+            return back()->with('error', 'Anggota kelompok kurang dari 2 orang. Tidak bisa melakukan Peer Review.');
+        }
+
+        DB::beginTransaction();
+        try {
+            // Cek apakah sesi Peer Review sudah pernah dibuka untuk kelompok ini
+            $isAlreadyOpened = DB::table('peer_reviews')
+                ->where('group_id', $groupId)
+                ->exists();
+
+            if ($isAlreadyOpened) {
+                return back()->with('info', 'Sesi Peer Review sudah pernah dibuka untuk kelompok ini.');
+            }
+
+            // Buat kombinasi saling menilai
+            $peerReviewData = [];
+            foreach ($members as $reviewerId) {
+                foreach ($members as $revieweeId) {
+                    // Seseorang tidak menilai dirinya sendiri
+                    if ($reviewerId !== $revieweeId) {
+                        $peerReviewData[] = [
+                            'reviewer_id' => $reviewerId,
+                            'reviewee_id' => $revieweeId,
+                            'group_id'    => $groupId,
+                            'score'       => null, // Nilai awal kosong (menunggu mahasiswa)
+                            'feedback_text'=> null,
+                            'created_at'  => now(),
+                            'updated_at'  => now(),
+                        ];
+                    }
+                }
+            }
+
+            DB::table('peer_reviews')->insert($peerReviewData);
+
+            DB::commit();
+            return back()->with('success', 'Sesi Peer Review untuk kelompok ' . $group->nama_kelompok . ' berhasil dibuka!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal membuka sesi Peer Review: ' . $e->getMessage());
+        }
+    }
 }
