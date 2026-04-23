@@ -63,6 +63,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Selesaikan tugas (Tombol Submit di In Progress)
         Route::post('/tasks/{taskId}/complete', [StudentDashboard::class, 'completeTask'])->name('tasks.complete');
         
+        // Rute untuk mahasiswa menyimpan nilai Peer Review
+        Route::post('/peer/{id}/rate', [StudentDashboard::class, 'ratePeer'])->name('peer.rate');
+        
         // Notifikasi / Colek
         Route::post('/colek/baca/{id}', [StudentDashboard::class, 'markNudgeRead'])->name('colek.read');
     });
