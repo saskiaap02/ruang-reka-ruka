@@ -104,61 +104,76 @@ class DashboardController extends Controller
      * Fitur Join Kelas via Kode Invite
      */
     public function joinClass(Request $request)
-{
-    // 1. Cari kelas berdasarkan kode yang diinput Hilma/Mahasiswa
-    $class = DB::table('project_classes')->where('invite_code', $request->invite_code)->first();
+    {
+        // 1. Cari kelas berdasarkan kode yang diinput Hilma/Mahasiswa
+        $class = DB::table('project_classes')->where('invite_code', $request->invite_code)->first();
 
-    if (!$class) {
-        return back()->with('error', 'Waduh, kode kelasnya salah tuh!');
+        if (!$class) {
+            return back()->with('error', 'Waduh, kode kelasnya salah tuh!');
+        }
+
+        // 2. Daftarkan mahasiswa ke kelas dengan status 'pending'
+        // Menggunakan updateOrInsert biar kalau dia klik dua kali nggak error
+        DB::table('class_students')->updateOrInsert(
+            [
+                'student_id' => Auth::id(),
+                'project_class_id' => $class->id
+            ],
+            [
+                'status' => 'pending', // <--- Menahan mahasiswa di ruang tunggu
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        return back()->with('message', 'Permintaan gabung sudah dikirim! Tunggu dosen approve ya.');
     }
-
-    // 2. Daftarkan mahasiswa ke kelas dengan status 'pending'
-    // Menggunakan updateOrInsert biar kalau dia klik dua kali nggak error
-    DB::table('class_students')->updateOrInsert(
-        [
-            'student_id' => Auth::id(),
-            'project_class_id' => $class->id
-        ],
-        [
-            'status' => 'pending', // <--- Menahan mahasiswa di ruang tunggu
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]
-    );
-
-    return back()->with('message', 'Permintaan gabung sudah dikirim! Tunggu dosen approve ya.');
-}
 
     /**
-     * [CRUD] Tambah Tugas Baru (Reka Tugas) dengan File Upload
+     * [CRUD] Tambah Tugas Baru (Reka Tugas) + Upload Lampiran
      */
- public function storeTask(Request $request)
-{
-    $request->validate([
-        'group_id' => 'required',
-        'title' => 'required|string|max:255',
-        'status' => 'required',
-        'link' => 'nullable|url', // Tambahkan validasi link
-        'attachment' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,zip,xlsx,xls|max:5120',
-    ]);
+    public function storeTask(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'required',
+            'title' => 'required|string|max:255',
+            'status' => 'required|in:backlog,in_progress,done',
+            'link' => 'nullable|url',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar,doc,docx,xlsx,xls|max:5120', // Maks 5MB
+        ]);
 
-    $filePath = null;
-    if ($request->hasFile('attachment')) {
-        $filePath = $request->file('attachment')->store('tasks', 'public');
+        // Proses Upload File jika ada
+        $filePath = null;
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            // Simpan ke folder storage/app/public/tasks
+            $filePath = $file->storeAs('tasks', $fileName, 'public'); 
+        }
+
+        $task = Task::create([
+            'group_id'  => $request->group_id,
+            'pic_id'    => Auth::id(),
+            'judul'     => $request->title,
+            'status'    => strtolower($request->status),
+            'link'      => $request->link, // Simpan link (jika ada)
+            'file_path' => $filePath,      // Simpan path file (jika ada)
+        ]);
+
+        ActivityLog::create([
+            'user_id'     => Auth::id(),
+            'group_id'    => $request->group_id,
+            'task_id'     => $task->id,
+            'action_type' => 'create_task',
+            'description' => 'Merekam tugas baru: ' . $request->title
+        ]);
+
+        return back()->with('success', 'Tugas dan lampiran berhasil ditambahkan!');
     }
 
-    Task::create([
-        'group_id' => $request->group_id,
-        'pic_id'   => Auth::id(),
-        'judul'    => $request->title,
-        'status'   => strtolower($request->status),
-        'link'     => $request->link,      // Pastikan kolom ini ada di database
-        'file_path' => $filePath, 
-    ]);
-
-    return back()->with('success', 'Tugas berhasil ditambahkan!');
-}
-
+    /**
+     * Update Status Tugas (Drag and Drop / Tarik Kartu)
+     */
     public function updateTaskStatus(Request $request, $id)
     {
         $task = Task::findOrFail($id);
@@ -195,23 +210,59 @@ class DashboardController extends Controller
         return back();
     }
 
+    /**
+     * Hapus Tugas
+     */
     public function deleteTask($id)
     {
         Task::findOrFail($id)->delete();
         return back();
     }
 
+    /**
+     * Fitur Selesaikan Tugas (Submit Progress) + Upload Lampiran
+     */
     public function completeTask(Request $request, $taskId)
     {
-        $request->validate(['link_evidence' => 'required|url']);
-        Task::findOrFail($taskId)->update([
-            'status' => 'done',
-            'link_evidence' => $request->link_evidence,
-            'completed_at' => now(),
+        // Sesuaikan validasi dengan apa yang dikirim Saskia saat submitProgress
+        $request->validate([
+            'title' => 'nullable|string', // Detail progress yang diketik
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar,doc,docx,xlsx,xls|max:5120',
         ]);
-        return back();
+
+        $task = Task::findOrFail($taskId);
+        
+        // Proses Upload File baru (jika ada)
+        $filePath = $task->file_path; // Default: pertahankan file lama
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('tasks', $fileName, 'public'); 
+        }
+
+        $task->update([
+            'status'        => 'done',
+            'file_path'     => $filePath,
+            'completed_at'  => now(),
+        ]);
+
+        // Catat di logbook detail progress yang dikerjakan
+        $detailProgress = $request->title ? ' Detail: ' . $request->title : '';
+
+        ActivityLog::create([
+            'user_id'     => Auth::id(),
+            'group_id'    => $task->group_id,
+            'task_id'     => $task->id,
+            'action_type' => 'complete_task',
+            'description' => 'Menyelesaikan tugas: ' . $task->judul . '.' . $detailProgress
+        ]);
+
+        return back()->with('success', 'Tugas selesai! Lampiran bukti telah tersimpan.');
     }
 
+    /**
+     * Tandai Colekan (Nudge) Telah Dibaca
+     */
     public function markNudgeRead($id)
     {
         DB::table('nudges')->where('id', $id)->update(['is_read' => true]);
