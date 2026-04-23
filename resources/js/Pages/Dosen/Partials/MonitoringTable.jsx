@@ -38,11 +38,10 @@ export default function MonitoringTable({ daftarKelompok }) {
                                     </td>
                                     <td className="p-6">
                                         {/* Badge Status Dinamis - Versi Dark */}
-                                        <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg uppercase tracking-widest border ${
-                                            kelompok.status === 'Aman' 
-                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                            : 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse'
-                                        }`}>
+                                        <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg uppercase tracking-widest border ${kelompok.status === 'Aman'
+                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                : 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse'
+                                            }`}>
                                             {kelompok.status}
                                         </span>
                                     </td>
@@ -52,11 +51,10 @@ export default function MonitoringTable({ daftarKelompok }) {
                                                 {kelompok.progress}%
                                             </span>
                                             <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                                                <div 
-                                                    className={`h-full transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.5)] ${
-                                                        parseInt(kelompok.progress) > 70 ? 'bg-emerald-500' : 
-                                                        parseInt(kelompok.progress) > 30 ? 'bg-blue-500' : 'bg-orange-600'
-                                                    }`} 
+                                                <div
+                                                    className={`h-full transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.5)] ${parseInt(kelompok.progress) > 70 ? 'bg-emerald-500' :
+                                                            parseInt(kelompok.progress) > 30 ? 'bg-blue-500' : 'bg-orange-600'
+                                                        }`}
                                                     style={{ width: `${kelompok.progress}%` }}
                                                 ></div>
                                             </div>
@@ -66,12 +64,25 @@ export default function MonitoringTable({ daftarKelompok }) {
                                         <span className="text-slate-700">“</span>{kelompok.log_terakhir || 'Belum ada aktivitas'}<span className="text-slate-700">”</span>
                                     </td>
                                     <td className="p-6 text-center">
-                                        <Link
-                                            href={route('dosen.kelompok.show', { id: kelompok.id })}
-                                            className="inline-block text-[10px] font-black uppercase tracking-[0.15em] text-blue-400 border border-blue-500/30 px-5 py-2.5 rounded-2xl hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-lg shadow-blue-900/20 active:scale-95"
-                                        >
-                                            Detail Audit
-                                        </Link>
+                                        {/* Kolom Aksi dengan Flexbox agar tombol sejajar */}
+                                        <div className="flex justify-center items-center gap-2">
+                                            <Link
+                                                href={route('dosen.kelompok.show', { id: kelompok.id })}
+                                                className="inline-block text-[10px] font-black uppercase tracking-[0.15em] text-blue-400 border border-blue-500/30 px-4 py-2.5 rounded-2xl hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-lg shadow-blue-900/20 active:scale-95"
+                                            >
+                                                Detail Audit
+                                            </Link>
+
+                                            {/* Tombol Peer Review yang sudah digabungkan & disesuaikan stylingnya */}
+                                            <Link
+                                                href={route('dosen.peer-review.open', kelompok.id)}
+                                                method="post"
+                                                as="button"
+                                                className="inline-block text-[10px] font-black uppercase tracking-[0.15em] text-purple-400 border border-purple-500/30 px-4 py-2.5 rounded-2xl hover:bg-purple-600 hover:text-white hover:border-purple-600 transition-all shadow-lg shadow-purple-900/20 active:scale-95"
+                                            >
+                                                Buka Peer Review
+                                            </Link>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
