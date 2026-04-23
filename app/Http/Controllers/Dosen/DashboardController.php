@@ -208,50 +208,48 @@ class DashboardController extends Controller
         }
 
         // 3. Ambil Mahasiswa yang sudah di-APPROVE tapi belum punya tim (Waiting List Real)
-          // DashboardController.php -> function index()
+        // Ambil ID semua kelas yang diajar dosen ini
+        $classIds = DB::table('project_classes')
+            ->where('dosen_id', auth()->id())
+            ->pluck('id');
 
-// Ambil ID semua kelas yang diajar dosen ini
-$classIds = DB::table('project_classes')
-    ->where('dosen_id', auth()->id())
-    ->pluck('id');
-
-$mahasiswaTanpaKelompok = DB::table('class_students')
-    ->join('users', 'class_students.student_id', '=', 'users.id')
-    ->join('project_classes', 'class_students.project_class_id', '=', 'project_classes.id')
-    // Join saran AI (sesuaikan class_id-nya juga)
-    ->leftJoin('smart_grouping_plans', function($join) {
-        $join->on('class_students.student_id', '=', 'smart_grouping_plans.student_id')
-             ->on('class_students.project_class_id', '=', 'smart_grouping_plans.project_class_id');
-    })
-    ->whereIn('class_students.project_class_id', $classIds) // <--- Pakai whereIn buat semua kelas dosen
-    ->where('class_students.status', 'approved')
-    ->whereNotExists(function ($query) {
-        $query->select(DB::raw(1))
-            ->from('group_members')
-            ->join('groups', 'group_members.group_id', '=', 'groups.id')
-            ->whereRaw('group_members.student_id = users.id')
-            ->whereColumn('groups.project_class_id', 'class_students.project_class_id');
-    })
-    ->select(
-        'users.id', 
-        'users.name', 
-        'project_classes.nama_kelas', // Tambahin ini biar dosen tau mhs ini dari kelas mana
-        'smart_grouping_plans.target_group_id as ai_suggested_id'
-    )
-    ->get();
+        $mahasiswaTanpaKelompok = DB::table('class_students')
+            ->join('users', 'class_students.student_id', '=', 'users.id')
+            ->join('project_classes', 'class_students.project_class_id', '=', 'project_classes.id')
+            // Join saran AI (sesuaikan class_id-nya juga)
+            ->leftJoin('smart_grouping_plans', function($join) {
+                $join->on('class_students.student_id', '=', 'smart_grouping_plans.student_id')
+                     ->on('class_students.project_class_id', '=', 'smart_grouping_plans.project_class_id');
+            })
+            ->whereIn('class_students.project_class_id', $classIds) // <--- Pakai whereIn buat semua kelas dosen
+            ->where('class_students.status', 'approved')
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('group_members')
+                    ->join('groups', 'group_members.group_id', '=', 'groups.id')
+                    ->whereRaw('group_members.student_id = users.id')
+                    ->whereColumn('groups.project_class_id', 'class_students.project_class_id');
+            })
+            ->select(
+                'users.id', 
+                'users.name', 
+                'project_classes.nama_kelas', // Tambahin ini biar dosen tau mhs ini dari kelas mana
+                'smart_grouping_plans.target_group_id as ai_suggested_id'
+            )
+            ->get();
 
         // 4. BARU: Ambil Mahasiswa yang statusnya masih PENDING (Nunggu Approval Dosen)
         $pendingStudents = DB::table('class_students')
-    ->join('users', 'class_students.student_id', '=', 'users.id')
-    // JOIN ke tabel rencana AI biar alasannya kelihatan di UI
-    ->leftJoin('smart_grouping_plans', function($join) use ($id) {
-        $join->on('class_students.student_id', '=', 'smart_grouping_plans.student_id')
-             ->where('smart_grouping_plans.project_class_id', '=', $id);
-    })
-    ->where('class_students.project_class_id', $id)
-    ->where('class_students.status', 'pending')
-    ->select('users.id', 'users.name', 'users.email', 'smart_grouping_plans.reason as ai_reason')
-    ->get();
+            ->join('users', 'class_students.student_id', '=', 'users.id')
+            // JOIN ke tabel rencana AI biar alasannya kelihatan di UI
+            ->leftJoin('smart_grouping_plans', function($join) use ($id) {
+                $join->on('class_students.student_id', '=', 'smart_grouping_plans.student_id')
+                     ->where('smart_grouping_plans.project_class_id', '=', $id);
+            })
+            ->where('class_students.project_class_id', $id)
+            ->where('class_students.status', 'pending')
+            ->select('users.id', 'users.name', 'users.email', 'smart_grouping_plans.reason as ai_reason')
+            ->get();
 
         return Inertia::render('Dosen/ShowKelas', [
             'kelas' => $kelas,
@@ -404,6 +402,66 @@ $mahasiswaTanpaKelompok = DB::table('class_students')
 
         return back()->with('success', 'Asisten AI RuKa berhasil merancang tim berdasarkan riwayat performa!');
     }
+
+    /**
+     * Endpoint Smart Grouping (AI Assisted)
+     * Menangkap array dari frontend, menyimpan alasan AI, dan mendistribusikan mahasiswa ke kelompok.
+     */
+    public function generateSmartGrouping(Request $request)
+    {
+        // 1. Validasi struktur data dari Frontend (Saskia)
+        $request->validate([
+            'project_class_id' => 'required|exists:project_classes,id',
+            'distribution_data' => 'required|array',
+            'distribution_data.*.student_id' => 'required|exists:users,id',
+            'distribution_data.*.target_group_id' => 'required|exists:groups,id',
+            'distribution_data.*.reason' => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Opsional: Bersihkan rancangan lama untuk kelas ini jika Dosen klik "Generate" ulang
+            DB::table('smart_grouping_plans')->where('project_class_id', $request->project_class_id)->delete();
+
+            // 2. Looping data hasil kalkulasi AI dari Frontend
+            foreach ($request->distribution_data as $data) {
+                
+                // A. Simpan "Jejak Analisis AI" ke tabel smart_grouping_plans
+                DB::table('smart_grouping_plans')->insert([
+                    'project_class_id' => $request->project_class_id,
+                    'student_id'       => $data['student_id'],
+                    'target_group_id'  => $data['target_group_id'],
+                    'reason'           => $data['reason'] ?? 'Didistribusikan oleh AI Smart Grouping',
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+
+                // B. Eksekusi Langsung: Masukkan mahasiswa ke tabel group_members
+                // Cek dulu agar tidak terjadi duplikasi data jika mahasiswa sudah ada di kelompok tersebut
+                $isAlreadyMember = DB::table('group_members')
+                    ->where('student_id', $data['student_id'])
+                    ->where('group_id', $data['target_group_id'])
+                    ->exists();
+
+                if (!$isAlreadyMember) {
+                    DB::table('group_members')->insert([
+                        'group_id'   => $data['target_group_id'],
+                        'student_id' => $data['student_id'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return back()->with('success', 'Rancangan kelompok AI berhasil disimpan dan mahasiswa telah didistribusikan!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal memproses Smart Grouping: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Detail Kelompok & Mode Audit Dosen
      */
@@ -461,55 +519,55 @@ $mahasiswaTanpaKelompok = DB::table('class_students')
      * Fitur Audit: Memberikan Nilai Audit Mahasiswa
      */
    public function auditStudent(Request $request, $groupId, $studentId)
-{
-    // 1. Ambil data nama mahasiswa dari database
-    $student = DB::table('users')->where('id', $studentId)->first();
+    {
+        // 1. Ambil data nama mahasiswa dari database
+        $student = DB::table('users')->where('id', $studentId)->first();
 
-    // 2. Ambil bobot dari kelas terkait
-    $config = DB::table('groups')
-        ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
-        ->where('groups.id', $groupId)
-        ->select('project_classes.bobot_dasar', 'project_classes.bobot_audit', 'project_classes.bobot_peer')
-        ->first();
+        // 2. Ambil bobot dari kelas terkait
+        $config = DB::table('groups')
+            ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
+            ->where('groups.id', $groupId)
+            ->select('project_classes.bobot_dasar', 'project_classes.bobot_audit', 'project_classes.bobot_peer')
+            ->first();
 
-    // 3. Logika perhitungan (Dasar 50, Audit 30, Peer 20)
-    $nilaiAudit = $request->nilai_audit;
-    $nilaiDasar = 85; 
-    $nilaiPeer = 88;
+        // 3. Logika perhitungan (Dasar 50, Audit 30, Peer 20)
+        $nilaiAudit = $request->nilai_audit;
+        $nilaiDasar = 85; 
+        $nilaiPeer = 88;
 
-    $total = (($nilaiDasar * $config->bobot_dasar) + 
-              ($nilaiAudit * $config->bobot_audit) + 
-              ($nilaiPeer * $config->bobot_peer)) / 100;
+        $total = (($nilaiDasar * $config->bobot_dasar) + 
+                  ($nilaiAudit * $config->bobot_audit) + 
+                  ($nilaiPeer * $config->bobot_peer)) / 100;
 
-    // 4. Update data di group_members
-    DB::table('group_members')
-        ->where('group_id', $groupId)
-        ->where('student_id', $studentId)
-        ->update([
-            'nilai_audit' => $nilaiAudit,
-            'nilai_akhir' => $total,
-            'updated_at' => now()
-        ]);
+        // 4. Update data di group_members
+        DB::table('group_members')
+            ->where('group_id', $groupId)
+            ->where('student_id', $studentId)
+            ->update([
+                'nilai_audit' => $nilaiAudit,
+                'nilai_akhir' => $total,
+                'updated_at' => now()
+            ]);
 
-    // 5. Pesan sukses dinamis pakai nama mahasiswanya
-    return back()->with('success', "Nilai {$student->name} berhasil diperbarui!");
-}
-
-    public function eksporSiakad($id)
-{
-    // 1. Cari data kelas buat dapetin nama file yang pas
-    $kelas = DB::table('project_classes')->where('id', $id)->first();
-
-    if (!$kelas) {
-        return back()->with('error', 'Kelas tidak ditemukan.');
+        // 5. Pesan sukses dinamis pakai nama mahasiswanya
+        return back()->with('success', "Nilai {$student->name} berhasil diperbarui!");
     }
 
-    // 2. Tentukan nama file (Contoh: Nilai_SIAKAD_MI_4B.xlsx)
-    $namaFile = 'Nilai_SIAKAD_' . str_replace(' ', '_', $kelas->nama_kelas) . '.xlsx';
+    public function eksporSiakad($id)
+    {
+        // 1. Cari data kelas buat dapetin nama file yang pas
+        $kelas = DB::table('project_classes')->where('id', $id)->first();
 
-    // 3. Jalankan perintah download Excel
-    return Excel::download(new NilaiSiakadExport($id), $namaFile);
-}
+        if (!$kelas) {
+            return back()->with('error', 'Kelas tidak ditemukan.');
+        }
+
+        // 2. Tentukan nama file (Contoh: Nilai_SIAKAD_MI_4B.xlsx)
+        $namaFile = 'Nilai_SIAKAD_' . str_replace(' ', '_', $kelas->nama_kelas) . '.xlsx';
+
+        // 3. Jalankan perintah download Excel
+        return Excel::download(new NilaiSiakadExport($id), $namaFile);
+    }
 
     /**
      * Mengirim Colekan (Nudge) via Database
