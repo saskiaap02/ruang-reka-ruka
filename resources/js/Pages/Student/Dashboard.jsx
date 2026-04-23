@@ -375,17 +375,44 @@ const isPending = currentRelation?.status === 'pending';
             )}
 
             {isTaskModalOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
-                    <div className="bg-white dark:bg-slate-800 p-12 rounded-[2.5rem] w-full max-w-xl relative animate-in zoom-in-95">
-                        <button onClick={() => setIsTaskModalOpen(false)} className="absolute top-6 right-6 p-2">✕</button>
-                        <h3 className="text-3xl font-black tracking-tighter mb-8">Reka Tugas.</h3>
-                        <form onSubmit={submitTask} className="space-y-8">
-                            <input type="text" className="w-full bg-transparent border-0 border-b-2 border-slate-200 text-2xl font-bold" placeholder="Tulis tugas..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus />
-                            <button type="submit" className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs">Simpan Tugas</button>
-                        </form>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className="bg-white dark:bg-slate-800 p-10 rounded-[2.5rem] w-full max-w-xl relative shadow-2xl animate-in fade-in zoom-in-95">
+            <button onClick={() => setIsTaskModalOpen(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600">✕</button>
+            
+            <div className="mb-8">
+                <h3 className="text-3xl font-black tracking-tighter text-slate-800 dark:text-white">Reka Tugas.</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Manajemen Proyek Ruang Reka</p>
+            </div>
+
+            <form onSubmit={submitTask} className="space-y-6">
+                {/* Input Judul */}
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">Judul Tugas</label>
+                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 text-sm font-bold focus:ring-2 focus:ring-blue-500" placeholder="Misal: Slicing UI Dashboard..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus />
+                </div>
+
+                {/* Input Link (BARU) */}
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">Tautan / Link (Opsional)</label>
+                    <input type="url" className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl py-4 px-5 text-sm font-medium focus:ring-2 focus:ring-blue-500" placeholder="https://github.com/..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} />
+                </div>
+
+                {/* Input File (BARU) */}
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">Lampiran (PDF/Docs/Excel)</label>
+                    <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/50 text-center relative hover:border-blue-400 transition-all">
+                        <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={e => taskForm.setData('attachment', e.target.files[0])} />
+                        <p className="text-xs font-bold text-slate-500">{taskForm.data.attachment ? taskForm.data.attachment.name : "Pilih file atau seret ke sini"}</p>
                     </div>
                 </div>
-            )}
+
+                <button type="submit" disabled={taskForm.processing} className="w-full py-5 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all">
+                    {taskForm.processing ? 'Menyimpan...' : 'Simpan Tugas'}
+                </button>
+            </form>
+        </div>
+    </div>
+)}
 
             {isActionModalOpen && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">

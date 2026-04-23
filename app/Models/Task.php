@@ -10,13 +10,14 @@ class Task extends Model
 {
     // Tambahkan link_evidence dan completed_at di sini Hil!
     protected $fillable = [
-        'group_id', 
-        'pic_id', 
-        'judul', 
-        'status', 
-        'link_evidence', 
-        'completed_at'
-    ];
+    'group_id', 
+    'pic_id', 
+    'judul', 
+    'status', 
+    'link',       // Sesuaikan dengan nama kolom di migrasi!
+    'file_path',  // Tambahkan ini supaya file PDF/Excel bisa tersimpan
+    'completed_at'
+];
 
     // Relasi ke kelompok asal tugas
     public function group(): BelongsTo

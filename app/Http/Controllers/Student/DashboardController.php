@@ -132,34 +132,32 @@ class DashboardController extends Controller
     /**
      * [CRUD] Tambah Tugas Baru (Reka Tugas) dengan File Upload
      */
-    public function storeTask(Request $request)
-    {
-        // 1. Validasi Input: Judul wajib, status wajib, file opsional
-        $request->validate([
-            'group_id' => 'required',
-            'title' => 'required|string|max:255',
-            'status' => 'required',
-            'attachment' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,zip|max:5120', // Maks 5MB
-        ]);
+ public function storeTask(Request $request)
+{
+    $request->validate([
+        'group_id' => 'required',
+        'title' => 'required|string|max:255',
+        'status' => 'required',
+        'link' => 'nullable|url', // Tambahkan validasi link
+        'attachment' => 'nullable|file|mimes:pdf,doc,docx,png,jpg,zip,xlsx,xls|max:5120',
+    ]);
 
-        // 2. Logika Simpan File
-        $filePath = null;
-        if ($request->hasFile('attachment')) {
-            // File akan masuk ke storage/app/public/tasks
-            $filePath = $request->file('attachment')->store('tasks', 'public');
-        }
-
-        // 3. Simpan ke Database
-        $task = Task::create([
-            'group_id' => $request->group_id,
-            'pic_id'   => Auth::id(),
-            'judul'    => $request->title,
-            'status'   => strtolower($request->status),
-            'file_path' => $filePath, // Simpan path file-nya
-        ]);
-
-        return back()->with('success', 'Tugas berhasil ditambahkan!');
+    $filePath = null;
+    if ($request->hasFile('attachment')) {
+        $filePath = $request->file('attachment')->store('tasks', 'public');
     }
+
+    Task::create([
+        'group_id' => $request->group_id,
+        'pic_id'   => Auth::id(),
+        'judul'    => $request->title,
+        'status'   => strtolower($request->status),
+        'link'     => $request->link,      // Pastikan kolom ini ada di database
+        'file_path' => $filePath, 
+    ]);
+
+    return back()->with('success', 'Tugas berhasil ditambahkan!');
+}
 
     public function updateTaskStatus(Request $request, $id)
     {

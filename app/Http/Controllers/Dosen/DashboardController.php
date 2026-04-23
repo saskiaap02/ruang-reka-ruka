@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Exports\NilaiSiakadExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
 {
@@ -458,20 +460,56 @@ $mahasiswaTanpaKelompok = DB::table('class_students')
     /**
      * Fitur Audit: Memberikan Nilai Audit Mahasiswa
      */
-    public function auditStudent(Request $request, $groupId, $studentId)
-    {
-        $request->validate(['nilai_audit' => 'required|numeric|min:0|max:100']);
+   public function auditStudent(Request $request, $groupId, $studentId)
+{
+    // 1. Ambil data nama mahasiswa dari database
+    $student = DB::table('users')->where('id', $studentId)->first();
 
-        DB::table('group_members')
-            ->where('group_id', $groupId)
-            ->where('student_id', $studentId)
-            ->update([
-                'nilai_audit' => $request->nilai_audit,
-                'updated_at' => now(),
-            ]);
+    // 2. Ambil bobot dari kelas terkait
+    $config = DB::table('groups')
+        ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
+        ->where('groups.id', $groupId)
+        ->select('project_classes.bobot_dasar', 'project_classes.bobot_audit', 'project_classes.bobot_peer')
+        ->first();
 
-        return back()->with('success', 'Nilai audit berhasil disimpan!');
+    // 3. Logika perhitungan (Dasar 50, Audit 30, Peer 20)
+    $nilaiAudit = $request->nilai_audit;
+    $nilaiDasar = 85; 
+    $nilaiPeer = 88;
+
+    $total = (($nilaiDasar * $config->bobot_dasar) + 
+              ($nilaiAudit * $config->bobot_audit) + 
+              ($nilaiPeer * $config->bobot_peer)) / 100;
+
+    // 4. Update data di group_members
+    DB::table('group_members')
+        ->where('group_id', $groupId)
+        ->where('student_id', $studentId)
+        ->update([
+            'nilai_audit' => $nilaiAudit,
+            'nilai_akhir' => $total,
+            'updated_at' => now()
+        ]);
+
+    // 5. Pesan sukses dinamis pakai nama mahasiswanya
+    return back()->with('success', "Nilai {$student->name} berhasil diperbarui!");
+}
+
+    public function eksporSiakad($id)
+{
+    // 1. Cari data kelas buat dapetin nama file yang pas
+    $kelas = DB::table('project_classes')->where('id', $id)->first();
+
+    if (!$kelas) {
+        return back()->with('error', 'Kelas tidak ditemukan.');
     }
+
+    // 2. Tentukan nama file (Contoh: Nilai_SIAKAD_MI_4B.xlsx)
+    $namaFile = 'Nilai_SIAKAD_' . str_replace(' ', '_', $kelas->nama_kelas) . '.xlsx';
+
+    // 3. Jalankan perintah download Excel
+    return Excel::download(new NilaiSiakadExport($id), $namaFile);
+}
 
     /**
      * Mengirim Colekan (Nudge) via Database

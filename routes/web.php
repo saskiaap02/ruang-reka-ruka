@@ -75,6 +75,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/kelas/{id}', [DosenDashboard::class, 'showKelas'])->name('kelas.show');
         Route::post('/tambah-approve', [DosenDashboard::class, 'approveStudent'])->name('tambah.approve');
         Route::post('/ai-generate-plot/{classId}', [DosenDashboard::class, 'generateAIPlan'])->name('ai.generate');
+        Route::get('/kelas/{id}/ekspor-siakad', [DosenDashboard::class, 'eksporSiakad'])->name('kelas.ekspor');
 
         // Manajemen Kelompok & Anggota
         Route::post('/kelompok', [DosenDashboard::class, 'storeKelompok'])->name('kelompok.store');
