@@ -4,374 +4,530 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActivityLogs from './Components/ActivityLogs';
 import KanbanBoard from './Components/KanbanBoard';
 
-export default function Dashboard({ auth, joinedClasses, myClass, myGroup, tasks, logs, nudges }) {
-    const [tab, setTab] = useState('kanban');
-    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
-    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-    const [isActionModalOpen, setIsActionModalOpen] = useState(false);
-    const [activeTaskId, setActiveTaskId] = useState(null);
+/* ─── helpers ─────────────────────────────────────────────────────────── */
+const AVATAR_COLORS = ['#fce7f3', '#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fee2e2'];
+const CARD_GRADIENTS = [
+    'linear-gradient(135deg,#fce7f3 0%,#fbcfe8 100%)',
+    'linear-gradient(135deg,#dbeafe 0%,#bfdbfe 100%)',
+    'linear-gradient(135deg,#d1fae5 0%,#a7f3d0 100%)',
+    'linear-gradient(135deg,#fef3c7 0%,#fde68a 100%)',
+    'linear-gradient(135deg,#ede9fe 0%,#ddd6fe 100%)',
+];
 
-    // --- LOGIKA STATUS APPROVAL ---
-    const currentRelation = joinedClasses?.find(item => item.project_class_id === myClass?.id);
-    const isPending = currentRelation?.status === 'pending';
+function Av({ name = '?', size = 36, idx = 0 }) {
+    return (
+        <div style={{
+            width: size, height: size, borderRadius: size * 0.35,
+            background: AVATAR_COLORS[idx % AVATAR_COLORS.length],
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: size * 0.38, fontWeight: 800, color: '#1e293b', flexShrink: 0,
+        }}>{name.charAt(0).toUpperCase()}</div>
+    );
+}
 
-    // --- FORM LOGIKA ---
+function StatCard({ label, value, bg, icon }) {
+    return (
+        <div style={{ background: bg, borderRadius: 18, padding: '18px 20px', flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
+                <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
+            </div>
+            <span style={{ fontSize: 30, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.03em', lineHeight: 1 }}>{value}</span>
+        </div>
+    );
+}
+
+function ProgressRing({ pct = 0, size = 80 }) {
+    const r = (size - 10) / 2;
+    const circ = 2 * Math.PI * r;
+    const dash = (pct / 100) * circ;
+    return (
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={8} />
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#6366f1" strokeWidth={8}
+                strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+        </svg>
+    );
+}
+
+function PeerCard({ review, onRate, myId }) {
+    const [hov, setHov] = useState(null);
+    const isReviewer = review.reviewer_id === myId;
+    const hasScore = review.score !== null && review.score !== undefined;
+    return (
+        <div style={{ background: 'white', borderRadius: 16, padding: '16px 18px', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <Av name={review.reviewee_name || '?'} size={32} idx={review.reviewee_id % 6} />
+                    <div>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: 0 }}>{review.reviewee_name || 'Anggota'}</p>
+                        <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {isReviewer ? 'Kamu menilai' : 'Perlu dinilai'}
+                        </p>
+                    </div>
+                </div>
+                {hasScore ? (
+                    <div style={{ background: review.score >= 75 ? '#dcfce7' : review.score >= 50 ? '#fef9c3' : '#fee2e2', borderRadius: 10, padding: '4px 12px', textAlign: 'center' }}>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: review.score >= 75 ? '#16a34a' : review.score >= 50 ? '#ca8a04' : '#dc2626' }}>{review.score}</span>
+                    </div>
+                ) : (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', background: '#fef3c7', padding: '4px 10px', borderRadius: 8, textTransform: 'uppercase' }}>Pending</span>
+                )}
+            </div>
+            {!isReviewer && !hasScore && onRate && (
+                <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Beri Nilai</p>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                        {[20, 40, 60, 80, 100].map(s => (
+                            <button key={s} onMouseEnter={() => setHov(s)} onMouseLeave={() => setHov(null)} onClick={() => onRate(review.id, s)}
+                                style={{
+                                    flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                                    background: hov !== null && s <= hov ? '#6366f1' : '#f1f5f9',
+                                    color: hov !== null && s <= hov ? 'white' : '#64748b',
+                                    fontSize: 11, fontWeight: 700
+                                }}>{s}</button>
+                        ))}
+                    </div>
+                </div>
+            )}
+            {review.feedback && <p style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', marginTop: 8, borderTop: '1px solid #f8fafc', paddingTop: 8 }}>"{review.feedback}"</p>}
+        </div>
+    );
+}
+
+/* ─── MAIN ─────────────────────────────────────────────────────────────── */
+export default function Dashboard({ auth, joinedClasses, myClass, myGroup, tasks, logs, nudges, peerReviews }) {
+    const [tab, setTab] = useState('overview');
+    const [isJoin, setIsJoin] = useState(false);
+    const [isTask, setIsTask] = useState(false);
+    const [isAct, setIsAct] = useState(false);
+    const [actId, setActId] = useState(null);
+
+    const currentRel = joinedClasses?.find(i => i.project_class_id === myClass?.id);
+    const isPending = currentRel?.status === 'pending';
+
     const joinForm = useForm({ invite_code: '' });
-    const taskForm = useForm({
-        group_id: myGroup?.id,
-        title: '',
-        link: '',
-        status: 'backlog',
-        attachment: null,
-    });
+    const taskForm = useForm({ group_id: myGroup?.id, title: '', status: 'backlog', attachment: null, link: '' });
 
-    const submitJoin = (e) => {
+    const submitJoin = e => { e.preventDefault(); joinForm.post(route('mahasiswa.join-class'), { onSuccess: () => { setIsJoin(false); joinForm.reset(); } }); };
+    const submitTask = e => {
         e.preventDefault();
-        joinForm.post(route('mahasiswa.join-class'), {
-            onSuccess: () => { setIsJoinModalOpen(false); joinForm.reset(); }
-        });
+        taskForm.post(route('mahasiswa.task.store'), { forceFormData: true, onSuccess: () => { setIsTask(false); taskForm.reset('title', 'attachment', 'link'); } });
     };
-
-    const submitTask = (e) => {
-        e.preventDefault();
-        taskForm.post(route('mahasiswa.task.store'), {
-            forceFormData: true,
-            onSuccess: () => {
-                setIsTaskModalOpen(false);
-                taskForm.reset('title', 'link', 'attachment');
-            },
-        });
+    const confirmDelete = id => { if (confirm('Hapus tugas ini?')) taskForm.delete(route('mahasiswa.task.delete', id)); };
+    const openTaskModal = status => { taskForm.clearErrors(); taskForm.setData({ group_id: myGroup?.id, title: '', status, attachment: null, link: '' }); setIsTask(true); };
+    const handleNext = id => { setActId(id); taskForm.clearErrors(); taskForm.setData({ title: '', attachment: null }); setIsAct(true); };
+    const submitProgress = st => {
+        router.post(route('mahasiswa.task.update-status', actId), { _method: 'post', status: st, title: taskForm.data.title, attachment: taskForm.data.attachment },
+            { forceFormData: true, onSuccess: () => { setIsAct(false); taskForm.reset(); } });
     };
+    const handlePeerRate = (rid, score) => { router.post(route('mahasiswa.peer.rate', rid), { score }, { preserveScroll: true }); };
 
-    const confirmDelete = (id) => {
-        if (confirm('Yakin mau hapus tugas ini?')) {
-            taskForm.delete(route('mahasiswa.task.delete', id));
-        }
+    const done = tasks?.filter(t => t.status === 'done').length || 0;
+    const active = tasks?.filter(t => t.status === 'in_progress').length || 0;
+    const total = tasks?.length || 0;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const members = myGroup?.members || [];
+    const pendingPeer = peerReviews?.filter(r => r.reviewer_id !== auth.user.id && r.score === null).length || 0;
+
+    const S = {
+        wrap: { fontFamily: "'Plus Jakarta Sans',sans-serif", background: '#f4f6fb', minHeight: '100vh', padding: '24px 0 60px' },
+        inner: { maxWidth: 1180, margin: '0 auto', padding: '0 24px' },
+        white: { background: 'white', borderRadius: 20, border: '1px solid #f0f0f4', padding: 20 },
+        label: { fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 },
+        h1: { fontSize: 26, fontWeight: 800, color: '#1e293b', margin: 0, letterSpacing: '-0.02em' },
+        tab: (active) => ({ padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', transition: 'all 0.2s', background: active ? '#6366f1' : 'transparent', color: active ? 'white' : '#94a3b8' }),
+        input: { width: '100%', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, padding: '11px 14px', fontSize: 14, fontWeight: 500, color: '#1e293b', outline: 'none', boxSizing: 'border-box' },
     };
-
-    const openTaskModal = (status) => {
-        taskForm.clearErrors();
-        taskForm.setData({
-            group_id: myGroup?.id,
-            title: '',
-            link: '',
-            status: status,
-            attachment: null
-        });
-        setIsTaskModalOpen(true);
-    };
-
-    const handleNextProcess = (taskId) => {
-        setActiveTaskId(taskId);
-        taskForm.clearErrors();
-        taskForm.setData({
-            title: '',
-            attachment: null
-        });
-        setIsActionModalOpen(true);
-    };
-
-    const submitProgress = (targetStatus) => {
-        router.post(route('mahasiswa.task.update-status', activeTaskId), {
-            _method: 'post',
-            status: targetStatus,
-            title: taskForm.data.title,
-            attachment: taskForm.data.attachment,
-        }, {
-            forceFormData: true,
-            onSuccess: () => {
-                setIsActionModalOpen(false);
-                taskForm.reset();
-            },
-        });
-    };
-
-    // Array warna pastel ala referensi UI untuk kartu kelas
-    const pastelThemes = [
-        { bg: 'bg-[#dcfce7] dark:bg-emerald-900/20', text: 'text-emerald-900 dark:text-emerald-300', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
-        { bg: 'bg-[#fce7f3] dark:bg-rose-900/20', text: 'text-rose-900 dark:text-rose-300', icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400' },
-        { bg: 'bg-[#fef3c7] dark:bg-amber-900/20', text: 'text-amber-900 dark:text-amber-300', icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-        { bg: 'bg-[#e0f2fe] dark:bg-blue-900/20', text: 'text-blue-900 dark:text-blue-300', icon: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400' },
-        { bg: 'bg-[#f3e8ff] dark:bg-purple-900/20', text: 'text-purple-900 dark:text-purple-300', icon: 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' },
-    ];
 
     return (
         <AuthenticatedLayout
             user={auth.user}
             header={
-                <div className="flex justify-between items-center">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
                     <div>
-                        <h2 className="font-black text-2xl text-slate-800 dark:text-white tracking-tighter">
-                            SIM-<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-blue-400 dark:from-blue-400 dark:to-emerald-400">CR.</span>
-                        </h2>
+                        <h2 style={{ fontWeight: 800, fontSize: 18, color: '#1e293b', margin: 0 }}>Ruang <span style={{ color: '#6366f1' }}>Kelas.</span></h2>
+                        <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Portal Mahasiswa</p>
                     </div>
                     {!myClass && (
-                        <button
-                            onClick={() => setIsJoinModalOpen(true)}
-                            className="bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white px-5 sm:px-6 py-2.5 rounded-full text-xs font-bold shadow-[0_8px_20px_rgb(0,0,0,0.1)] dark:shadow-blue-600/30 transition-all active:scale-95 flex items-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                            <span className="hidden sm:inline">GABUNG KELAS</span>
+                        <button onClick={() => setIsJoin(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#6366f1', color: 'white', padding: '9px 18px', borderRadius: 12, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(99,102,241,0.35)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                            + Gabung Kelas
                         </button>
                     )}
                 </div>
             }
         >
-            <Head title={myClass ? `Kelas: ${myClass.nama_kelas}` : "Workspace"} />
+            <Head title={myClass ? `Kelas: ${myClass.nama_kelas}` : 'Katalog Kelas'} />
+            <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');`}</style>
 
-            {/* Background super soft untuk Light Mode (#f4f7fc), Dark Mode tetap pekat */}
-            <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b1120] pb-20 font-sans px-4 sm:px-10 pt-8 transition-colors duration-500 relative z-0 selection:bg-blue-500 selection:text-white">
+            <div style={S.wrap}>
+                <div style={S.inner}>
 
-                <div className="max-w-7xl mx-auto space-y-8 relative z-10">
-
-                    {/* BANNER NUDGE */}
-                    {nudges && nudges.length > 0 && nudges.filter(n => !n.is_read).map((nudge) => (
-                        <div key={nudge.id} className="mb-8 bg-red-50 dark:bg-red-900/20 backdrop-blur-xl border border-red-100 dark:border-red-500/30 p-5 rounded-[1.5rem] shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-in slide-in-from-top-4">
-                            <div className="flex gap-4 items-start sm:items-center">
-                                <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-500/20 text-red-500 flex items-center justify-center shrink-0">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    {/* NUDGES */}
+                    {nudges?.filter(n => !n.is_read).map(nudge => (
+                        <div key={nudge.id} style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 16, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: 10, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                 </div>
                                 <div>
-                                    <h3 className="text-red-600 dark:text-red-400 font-bold text-sm tracking-wide">Peringatan Audit!</h3>
-                                    <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">{nudge.message}</p>
+                                    <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>Peringatan Dosen</p>
+                                    <p style={{ fontSize: 13, color: '#7c3aed', margin: 0, fontWeight: 500 }}>{nudge.message}</p>
                                 </div>
                             </div>
-                            <Link
-                                href={route('mahasiswa.colek.read', { id: nudge.id })}
-                                method="post"
-                                as="button"
-                                preserveScroll={true}
-                                className="w-full sm:w-auto px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-full transition-all active:scale-95"
-                            >
+                            <Link href={route('mahasiswa.colek.read', { id: nudge.id })} method="post" as="button" preserveScroll
+                                style={{ padding: '8px 14px', background: '#ef4444', color: 'white', borderRadius: 10, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
                                 Saya Mengerti
                             </Link>
                         </div>
                     ))}
 
-                    {/* LOGIKA SATU PINTU: Katalog vs Detail */}
+                    {/* ── KATALOG ────────────────────────────────────────────── */}
                     {!myClass ? (
-                        /* ========================================= */
-                        /* TAMPILAN 1: KATALOG KELAS (PASTEL AESTHETIC) */
-                        /* ========================================= */
-                        <>
-                            <div className="mb-8 animate-in fade-in duration-500 flex items-center gap-4">
-                                <div>
-                                    <h1 className="text-3xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                        Welcome back 👏
-                                    </h1>
-                                    <p className="text-slate-500 mt-1 font-medium">Your classes today ({joinedClasses?.length || 0})</p>
+                        <div>
+                            <div style={{ marginBottom: 24 }}>
+                                <h1 style={S.h1}>Hai, {auth.user.name.split(' ')[0]}! 👋</h1>
+                                <p style={{ fontSize: 14, color: '#64748b', margin: '4px 0 0', fontWeight: 500 }}>Kamu terdaftar di {joinedClasses?.length || 0} kelas.</p>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+                                {joinedClasses?.map((item, idx) => (
+                                    <div key={item.id} style={{ background: CARD_GRADIENTS[idx % CARD_GRADIENTS.length], borderRadius: 20, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: 176, position: 'relative', overflow: 'hidden', transition: 'transform 0.2s', cursor: 'pointer' }}
+                                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
+                                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                                        <div style={{ position: 'absolute', right: -16, bottom: -16, width: 90, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.3)' }}></div>
+                                        <div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', background: 'rgba(255,255,255,0.5)', padding: '3px 8px', borderRadius: 6 }}>{item.project_class?.mata_kuliah}</span>
+                                                <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 6, background: item.status === 'pending' ? '#fef3c7' : '#dcfce7', color: item.status === 'pending' ? '#b45309' : '#15803d', textTransform: 'uppercase' }}>
+                                                    {item.status === 'pending' ? '⏳ Pending' : '✓ Aktif'}
+                                                </span>
+                                            </div>
+                                            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '10px 0 0', lineHeight: 1.25, letterSpacing: '-0.01em' }}>{item.project_class?.nama_kelas}</h3>
+                                        </div>
+                                        <Link href={route('mahasiswa.kelas.show', item.project_class_id)}
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.65)', borderRadius: 12, padding: '9px 13px', textDecoration: 'none', color: '#1e293b', fontSize: 12, fontWeight: 700, backdropFilter: 'blur(4px)' }}>
+                                            {item.status === 'pending' ? 'Cek Status' : 'Buka Ruang'}
+                                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                                        </Link>
+                                    </div>
+                                ))}
+                                {/* join CTA */}
+                                <div onClick={() => setIsJoin(true)} style={{ border: '2px dashed #c7d2fe', background: 'white', borderRadius: 20, height: 176, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', transition: 'all 0.2s' }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.background = '#f5f3ff'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#c7d2fe'; e.currentTarget.style.background = 'white'; }}>
+                                    <div style={{ width: 42, height: 42, borderRadius: 14, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#6366f1" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                    </div>
+                                    <p style={{ fontSize: 13, fontWeight: 700, color: '#6366f1', margin: 0 }}>Gabung Kelas Baru</p>
+                                    <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>Masukkan kode dari dosen</p>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-700">
-                                {joinedClasses && joinedClasses.length > 0 ? (
-                                    joinedClasses.map((item, idx) => {
-                                        const theme = pastelThemes[idx % pastelThemes.length];
+                    ) : isPending ? (
+                        /* ── PENDING ──────────────────────────────────────────── */
+                        <div style={{ textAlign: 'center', padding: '80px 24px' }}>
+                            <div style={{ width: 76, height: 76, borderRadius: 24, background: '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, margin: '0 auto 20px' }}>⏳</div>
+                            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: '0 0 10px' }}>Sabar ya, {auth.user.name.split(' ')[0]}!</h2>
+                            <p style={{ color: '#64748b', fontSize: 14, maxWidth: 380, margin: '0 auto 22px', lineHeight: 1.7 }}>
+                                Akses ke <strong style={{ color: '#6366f1' }}>{myClass.nama_kelas}</strong> sedang diproses. Dosen perlu memberikan approval manual.
+                            </p>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'white', border: '1px solid #e2e8f0', borderRadius: 12, padding: '9px 16px' }}>
+                                <div style={{ width: 7, height: 7, background: '#f59e0b', borderRadius: '50%' }}></div>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Menunggu Konfirmasi Dosen</span>
+                            </div>
+                            <br />
+                            <Link href={route('mahasiswa.dashboard')} style={{ display: 'inline-block', marginTop: 18, fontSize: 12, fontWeight: 700, color: '#94a3b8', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.07em' }}>← Kembali ke Katalog</Link>
+                        </div>
 
-                                        return (
-                                            <Link
-                                                key={item.id}
-                                                href={route('mahasiswa.kelas.show', item.project_class_id)}
-                                                className={`group relative flex flex-col justify-between h-56 p-6 rounded-[2rem] ${theme.bg} transition-all duration-300 hover:scale-[1.02] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] dark:shadow-none cursor-pointer border border-transparent dark:border-slate-800`}
-                                            >
-                                                {/* Status Badge ala Referensi */}
-                                                <div className="flex justify-between items-start">
-                                                    <div className="flex -space-x-2">
-                                                        {/* Avatar Dummmy (Estetika) */}
-                                                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-800"></div>
-                                                        <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-600 border-2 border-white dark:border-slate-800"></div>
-                                                        <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-900 border-2 border-white dark:border-slate-800 flex items-center justify-center text-[9px] font-bold text-slate-600 dark:text-slate-400">+</div>
-                                                    </div>
-
-                                                    <div className="bg-white/60 dark:bg-slate-900/50 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm">
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${item.status === 'pending' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></div>
-                                                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
-                                                            {item.status}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-auto">
-                                                    <h2 className={`text-2xl font-bold tracking-tight ${theme.text} mb-1 line-clamp-1`}>
-                                                        {item.project_class?.mata_kuliah}
-                                                    </h2>
-                                                    <div className="flex justify-between items-end">
-                                                        <p className={`text-sm font-medium ${theme.text} opacity-80`}>
-                                                            {item.project_class?.nama_kelas}
-                                                        </p>
-                                                        {/* Ikon Arrow Aesthetic */}
-                                                        <div className={`w-8 h-8 rounded-full bg-white/60 dark:bg-slate-900/50 backdrop-blur-sm flex items-center justify-center shadow-sm group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors`}>
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-4 h-4 ${theme.text}`}><path strokeLinecap="round" strokeLinejoin="round" d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25" /></svg>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </Link>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="col-span-full flex flex-col items-center justify-center py-20 opacity-60">
-                                        <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 text-3xl shadow-sm border border-slate-100 dark:border-slate-700">📭</div>
-                                        <p className="text-slate-500 font-medium">Belum ada aktivitas hari ini.</p>
+                    ) : (
+                        /* ── APPROVED / DETAIL ─────────────────────────────── */
+                        <div>
+                            {/* Header row */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                        <Link href={route('mahasiswa.dashboard')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 10, background: 'white', border: '1px solid #e2e8f0', textDecoration: 'none' }}>
+                                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#64748b" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                                        </Link>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{myClass.nama_kelas}</span>
+                                    </div>
+                                    <h1 style={S.h1}>{myGroup ? `Halo, ${auth.user.name.split(' ')[0]}! 👋` : 'Halo!'}</h1>
+                                    <p style={{ fontSize: 14, color: '#64748b', margin: '4px 0 0', fontWeight: 500 }}>
+                                        {myGroup ? <>Tim <strong style={{ color: '#6366f1' }}>{myGroup.nama_kelompok}</strong> · {myGroup.project_title || 'Proyek Kelompok'}</> : 'AI sedang memetakan tim kamu...'}
+                                    </p>
+                                </div>
+                                {myGroup && (
+                                    <div style={{ display: 'flex', background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: 4, gap: 2, position: 'relative' }}>
+                                        {[{ k: 'overview', l: 'Overview' }, { k: 'kanban', l: 'Kanban' }, { k: 'logs', l: 'Logbook' }, { k: 'peer', l: `Peer Review${pendingPeer > 0 ? ` (${pendingPeer})` : ''}` }].map(t => (
+                                            <button key={t.k} onClick={() => setTab(t.k)} style={S.tab(tab === t.k)}>{t.l}</button>
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                        </>
-                    ) : (
-                        /* ========================================= */
-                        /* TAMPILAN 2: DETAIL KELAS */
-                        /* ========================================= */
-                        <div className="space-y-6 animate-in slide-in-from-bottom-5 duration-500">
 
-                            {/* TOMBOL KEMBALI AESTHETIC (PILL) */}
-                            <Link href={route('mahasiswa.dashboard')} className="group inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700/50 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all shadow-sm">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
-                                Dashboard
-                            </Link>
-
-                            {isPending ? (
-                                /* LAYAR PENDING */
-                                <div className="bg-white dark:bg-slate-900/50 p-16 rounded-[2.5rem] text-center shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-800 flex flex-col items-center">
-                                    <div className="w-24 h-24 bg-amber-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 border border-amber-100 dark:border-slate-700">
-                                        <span className="text-4xl animate-bounce">⏳</span>
-                                    </div>
-                                    <h2 className="text-3xl font-bold text-slate-800 dark:text-white leading-tight">Menunggu Approval</h2>
-                                    <p className="text-slate-500 mt-3 max-w-md text-lg">
-                                        Akses kelas <span className="font-bold text-slate-700 dark:text-slate-300">{myClass.mata_kuliah}</span> sedang diproses oleh dosen.
+                            {!myGroup ? (
+                                <div style={{ textAlign: 'center', padding: '60px 24px', ...S.white }}>
+                                    <div style={{ fontSize: 46, marginBottom: 12 }}>🤖</div>
+                                    <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>AI Sedang Mengolah Data...</h3>
+                                    <p style={{ color: '#64748b', fontSize: 13, maxWidth: 340, margin: '0 auto' }}>
+                                        Status <span style={{ color: '#22c55e', fontWeight: 700 }}>Approved</span>. Tunggu AI membagi tim berdasarkan performamu!
                                     </p>
                                 </div>
-                            ) : (
-                                <>
-                                    {/* HEADER KELAS & SWITCHER */}
-                                    <div className="bg-white dark:bg-slate-900/50 p-8 sm:p-10 rounded-[2.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] dark:shadow-none border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
-                                        <div className="space-y-3">
-                                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                                                {myClass.nama_kelas}
-                                            </div>
-                                            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-800 dark:text-white leading-tight">
-                                                {myGroup?.nama_kelompok || 'Belum Ada Tim'}
-                                            </h1>
-                                            <p className="text-slate-500 font-medium">
-                                                Proyek: <span className="text-slate-800 dark:text-white font-bold">{myGroup?.project_title || 'Menunggu Penugasan...'}</span>
-                                            </p>
+                            ) : tab === 'overview' ? (
+                                /* ── OVERVIEW ─────────────────────────────── */
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, alignItems: 'start' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                        {/* Stat row */}
+                                        <div style={{ display: 'flex', gap: 12 }}>
+                                            <StatCard label="Selesai" value={done} bg="#dbeafe" icon="✅" />
+                                            <StatCard label="Berjalan" value={active} bg="#fce7f3" icon="🔥" />
+                                            <StatCard label="Total" value={total} bg="#d1fae5" icon="📋" />
                                         </div>
 
-                                        {myGroup && (
-                                            /* TOGGLE SWITCHER ALA iOS */
-                                            <div className="flex p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full md:w-auto shadow-inner">
-                                                <button onClick={() => setTab('kanban')} className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${tab === 'kanban' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                                                    Kanban
-                                                </button>
-                                                <button onClick={() => setTab('logs')} className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${tab === 'logs' ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                                                    Logbook
-                                                </button>
+                                        {/* Progress card */}
+                                        <div style={{ ...S.white, display: 'flex', alignItems: 'center', gap: 20 }}>
+                                            <div style={{ position: 'relative', flexShrink: 0 }}>
+                                                <ProgressRing pct={pct} size={88} />
+                                                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span style={{ fontSize: 16, fontWeight: 800, color: '#6366f1' }}>{pct}%</span>
+                                                </div>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 4px' }}>Progress Proyek</p>
+                                                <p style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', letterSpacing: '-0.01em' }}>{myGroup.project_title || 'Proyek Kelompok'}</p>
+                                                <div style={{ background: '#f1f5f9', borderRadius: 100, height: 6, overflow: 'hidden' }}>
+                                                    <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: 100, transition: 'width 0.6s ease' }}></div>
+                                                </div>
+                                                <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0', fontWeight: 600 }}>{done} dari {total} tugas selesai</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Task list */}
+                                        <div style={S.white}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                                                <p style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: 0 }}>Tugas Aktif</p>
+                                                <button onClick={() => setTab('kanban')} style={{ fontSize: 11, fontWeight: 700, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer' }}>Lihat Semua →</button>
+                                            </div>
+                                            {tasks?.filter(t => t.status !== 'done').slice(0, 5).map(t => (
+                                                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid #f8fafc' }}>
+                                                    <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: t.status === 'in_progress' ? '#6366f1' : '#94a3b8' }}></div>
+                                                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', flex: 1, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</p>
+                                                    <span style={{
+                                                        fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 6,
+                                                        background: t.status === 'in_progress' ? '#dbeafe' : '#f1f5f9',
+                                                        color: t.status === 'in_progress' ? '#2563eb' : '#64748b'
+                                                    }}>{t.status === 'in_progress' ? 'Progress' : 'Backlog'}</span>
+                                                    <button onClick={() => handleNext(t.id)} style={{ width: 26, height: 26, borderRadius: 8, background: '#f1f5f9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="#64748b" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {!tasks?.filter(t => t.status !== 'done').length && <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', padding: '16px 0', margin: 0 }}>Semua tugas selesai 🎉</p>}
+                                            <button onClick={() => openTaskModal('backlog')} style={{ width: '100%', marginTop: 12, padding: '9px', borderRadius: 10, border: '1.5px dashed #c7d2fe', background: 'none', color: '#6366f1', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ Tambah Tugas</button>
+                                        </div>
+
+                                        {/* Recent logs */}
+                                        <div style={S.white}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                                                <p style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: 0 }}>Aktivitas Terbaru</p>
+                                                <button onClick={() => setTab('logs')} style={{ fontSize: 11, fontWeight: 700, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer' }}>Semua →</button>
+                                            </div>
+                                            {logs?.slice(0, 5).map((log, i) => (
+                                                <div key={log.id || i} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#6366f1', marginTop: 5, flexShrink: 0 }}></div>
+                                                    <div>
+                                                        <p style={{ fontSize: 12, color: '#475569', margin: 0, lineHeight: 1.5 }}>{log.description || log.action}</p>
+                                                        <p style={{ fontSize: 10, color: '#94a3b8', margin: '2px 0 0', fontWeight: 600 }}>{log.created_at_human || ''}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {!logs?.length && <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>Belum ada aktivitas.</p>}
+                                        </div>
+                                    </div>
+
+                                    {/* RIGHT SIDEBAR */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                        {/* Team members */}
+                                        <div style={S.white}>
+                                            <p style={{ ...S.label, marginBottom: 14 }}>Anggota Tim · {members.length} orang</p>
+                                            {members.map((m, i) => (
+                                                <div key={m.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: i < members.length - 1 ? 10 : 0 }}>
+                                                    <Av name={m.name || m.user?.name || '?'} size={34} idx={i} />
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name || m.user?.name}</p>
+                                                        <p style={{ fontSize: 10, color: '#94a3b8', margin: 0, fontWeight: 600 }}>{(m.id || m.user_id) === auth.user.id ? 'Kamu' : 'Anggota'}</p>
+                                                    </div>
+                                                    <div style={{ width: 7, height: 7, background: '#22c55e', borderRadius: '50%' }}></div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Peer review summary */}
+                                        <div style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', borderRadius: 20, padding: 18 }}>
+                                            <p style={{ ...S.label, color: 'rgba(0,0,0,0.4)', marginBottom: 10 }}>Peer Review</p>
+                                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 6 }}>
+                                                <span style={{ fontSize: 30, fontWeight: 800, color: '#4c1d95', lineHeight: 1 }}>
+                                                    {peerReviews?.filter(r => r.score !== null).length || 0}
+                                                </span>
+                                                <span style={{ fontSize: 14, color: '#6d28d9', fontWeight: 600, marginBottom: 3 }}>/ {peerReviews?.length || 0} selesai</span>
+                                            </div>
+                                            {pendingPeer > 0 && <p style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, margin: '0 0 10px' }}>⚠ {pendingPeer} menunggu penilaianmu</p>}
+                                            <button onClick={() => setTab('peer')} style={{ width: '100%', padding: '9px', borderRadius: 10, background: 'rgba(255,255,255,0.55)', border: 'none', fontSize: 12, fontWeight: 700, color: '#4c1d95', cursor: 'pointer' }}>
+                                                {pendingPeer > 0 ? 'Nilai Sekarang →' : 'Lihat Detail →'}
+                                            </button>
+                                        </div>
+
+                                        {/* Average score received */}
+                                        {peerReviews?.some(r => r.reviewee_id === auth.user.id && r.score !== null) && (() => {
+                                            const myScores = peerReviews.filter(r => r.reviewee_id === auth.user.id && r.score !== null);
+                                            const avg = Math.round(myScores.reduce((a, b) => a + b.score, 0) / myScores.length);
+                                            return (
+                                                <div style={{ background: 'linear-gradient(135deg,#d1fae5,#a7f3d0)', borderRadius: 20, padding: 18 }}>
+                                                    <p style={{ ...S.label, color: 'rgba(0,0,0,0.4)', marginBottom: 8 }}>Nilai Peer Kamu</p>
+                                                    <p style={{ fontSize: 34, fontWeight: 800, color: '#065f46', margin: '0 0 2px', lineHeight: 1 }}>{avg}<span style={{ fontSize: 16, fontWeight: 600, color: '#059669' }}>/100</span></p>
+                                                    <p style={{ fontSize: 11, color: '#047857', margin: 0, fontWeight: 600 }}>Rata-rata dari {myScores.length} penilai</p>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+
+                            ) : tab === 'kanban' ? (
+                                <KanbanBoard tasks={tasks} myGroup={myGroup} openModal={openTaskModal} onNext={handleNext} handleDelete={confirmDelete} />
+
+                            ) : tab === 'logs' ? (
+                                <ActivityLogs logs={logs} />
+
+                            ) : tab === 'peer' ? (
+                                /* ── PEER REVIEW ──────────────────────────── */
+                                <div>
+                                    <div style={{ ...S.white, marginBottom: 14 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                                            <div>
+                                                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Peer Review Anggota Tim</h3>
+                                                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Nilai kontribusi rekan secara objektif. Penilaian anonim & rahasia.</p>
+                                            </div>
+                                            {pendingPeer > 0 && (
+                                                <span style={{ fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#b45309', padding: '6px 12px', borderRadius: 10, border: '1px solid #fde68a' }}>
+                                                    ⏳ {pendingPeer} belum dinilai
+                                                </span>
+                                            )}
+                                        </div>
+                                        {peerReviews?.length > 0 ? (
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+                                                {peerReviews.map(r => <PeerCard key={r.id} review={r} onRate={handlePeerRate} myId={auth.user.id} />)}
+                                            </div>
+                                        ) : (
+                                            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                                                <div style={{ fontSize: 36, marginBottom: 8 }}>📊</div>
+                                                <p style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8', margin: 0 }}>Peer review belum dibuka oleh dosen.</p>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* KONTEN BOARD / AI */}
-                                    {myGroup ? (
-                                        tab === 'kanban' ? (
-                                            <KanbanBoard tasks={tasks} myGroup={myGroup} openModal={openTaskModal} onNext={handleNextProcess} handleDelete={confirmDelete} />
-                                        ) : (
-                                            <ActivityLogs logs={logs} />
-                                        )
-                                    ) : (
-                                        <div className="text-center py-20 bg-white dark:bg-slate-900/30 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800">
-                                            <div className="w-20 h-20 bg-blue-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🤖</div>
-                                            <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Smart Grouping Aktif</h3>
-                                            <p className="text-slate-500 max-w-sm mx-auto">
-                                                Asisten AI sedang mengkalkulasi dan membagi tim terbaik untukmu.
-                                            </p>
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                                    {/* Average score received */}
+                                    {peerReviews?.some(r => r.reviewee_id === auth.user.id && r.score !== null) && (() => {
+                                        const sc = peerReviews.filter(r => r.reviewee_id === auth.user.id && r.score !== null);
+                                        const avg = Math.round(sc.reduce((a, b) => a + b.score, 0) / sc.length);
+                                        return (
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+                                                <div style={{ background: 'linear-gradient(135deg,#d1fae5,#a7f3d0)', borderRadius: 20, padding: 20 }}>
+                                                    <p style={{ ...S.label, color: 'rgba(0,0,0,0.4)', marginBottom: 8 }}>Nilai Peer Kamu</p>
+                                                    <p style={{ fontSize: 36, fontWeight: 800, color: '#065f46', margin: '0 0 2px', lineHeight: 1 }}>{avg}<span style={{ fontSize: 16, fontWeight: 600, color: '#059669' }}>/100</span></p>
+                                                    <p style={{ fontSize: 11, color: '#047857', fontWeight: 600, margin: 0 }}>Dari {sc.length} penilai</p>
+                                                </div>
+                                                <div style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', borderRadius: 20, padding: 20 }}>
+                                                    <p style={{ ...S.label, color: 'rgba(0,0,0,0.4)', marginBottom: 8 }}>Selesai Dinilai</p>
+                                                    <p style={{ fontSize: 36, fontWeight: 800, color: '#4c1d95', margin: '0 0 2px', lineHeight: 1 }}>{peerReviews.filter(r => r.score !== null).length}<span style={{ fontSize: 16, fontWeight: 600, color: '#6d28d9' }}>/{peerReviews.length}</span></p>
+                                                    <p style={{ fontSize: 11, color: '#6d28d9', fontWeight: 600, margin: 0 }}>Total penilaian</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            ) : null}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* ============================================================================== */}
-            {/* 🚨 AREA MODAL TETAP SAMA 🚨 */}
-            {/* ============================================================================== */}
-
-            {isJoinModalOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 dark:bg-[#0b1120]/80 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-900 p-10 rounded-[2.5rem] w-full max-w-md relative animate-in zoom-in-95 border border-slate-100 dark:border-slate-800 shadow-2xl">
-                        <button onClick={() => setIsJoinModalOpen(false)} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full transition-colors">✕</button>
-
-                        <div className="w-14 h-14 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" /></svg>
-                        </div>
-                        <h3 className="text-2xl font-bold text-center text-slate-800 dark:text-white mb-1">Gabung Kelas</h3>
-                        <p className="text-slate-500 text-center text-sm mb-8">Masukkan 6 digit kode unik dosen.</p>
-
-                        <form onSubmit={submitJoin} className="space-y-5">
-                            <input type="text" className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-center font-black tracking-[0.5em] text-2xl uppercase text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="KODE 6" value={joinForm.data.invite_code} onChange={e => joinForm.setData('invite_code', e.target.value.toUpperCase())} maxLength="6" required />
-                            <button type="submit" disabled={joinForm.processing} className="w-full py-4 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-50">Gabung Ruang</button>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {isTaskModalOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 dark:bg-[#0b1120]/80 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] w-full max-w-lg relative border border-slate-100 dark:border-slate-800 shadow-2xl animate-in zoom-in-95">
-                        <button onClick={() => setIsTaskModalOpen(false)} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full transition-colors">✕</button>
-                        <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Tambah Tugas ({taskForm.data.status})</h3>
-
-                        <form onSubmit={submitTask} className="space-y-5">
-                            <div className="space-y-1.5">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide ml-1">Judul Tugas</label>
-                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-3 px-4 text-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Apa yang mau dikerjakan?" value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus required />
+            {/* ── MODALS ──────────────────────────────────────────────────── */}
+            {[
+                {
+                    show: isJoin, onClose: () => setIsJoin(false), maxW: 380, content: (
+                        <>
+                            <div style={{ width: 46, height: 46, borderRadius: 15, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                                <svg width="21" height="21" fill="none" viewBox="0 0 24 24" stroke="#6366f1" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
                             </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide ml-1">Tautan (Opsional)</label>
-                                <input type="url" className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-3 px-4 text-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder="https://..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide ml-1">Lampiran (Opsional)</label>
-                                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl cursor-pointer bg-slate-50 dark:bg-slate-950 hover:border-blue-400 transition-all">
-                                    <div className="flex flex-col items-center justify-center text-center px-4">
-                                        <p className="text-sm font-bold text-slate-500 dark:text-slate-400">
-                                            {taskForm.data.attachment ? <span className="text-blue-500">{taskForm.data.attachment.name}</span> : "Pilih dokumen (Maks. 5MB)"}
+                            <h3 style={{ fontSize: 19, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Gabung Kelas</h3>
+                            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>Masukkan kode 6 karakter dari dosen</p>
+                            <form onSubmit={submitJoin}>
+                                <input type="text" value={joinForm.data.invite_code} onChange={e => joinForm.setData('invite_code', e.target.value.toUpperCase())} maxLength="6" required
+                                    style={{ ...S.input, textAlign: 'center', fontSize: 24, fontWeight: 800, letterSpacing: '0.4em', marginBottom: 12 }} placeholder="AABBCC" />
+                                {joinForm.errors.invite_code && <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{joinForm.errors.invite_code}</p>}
+                                <button type="submit" disabled={joinForm.processing} style={{ width: '100%', padding: '12px', borderRadius: 12, background: '#6366f1', color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(99,102,241,0.35)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                                    {joinForm.processing ? 'Memproses...' : 'Gabung Sekarang'}
+                                </button>
+                            </form>
+                        </>
+                    )
+                },
+                {
+                    show: isTask, onClose: () => setIsTask(false), maxW: 500, content: (
+                        <>
+                            <h3 style={{ fontSize: 19, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Tugas Baru</h3>
+                            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>Tambahkan ke papan kanban tim</p>
+                            <form onSubmit={submitTask} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {[
+                                    { label: 'Judul Tugas', el: <input type="text" style={S.input} placeholder="Misal: Slicing UI Dashboard..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus /> },
+                                    { label: 'Tautan (Opsional)', el: <input type="url" style={S.input} placeholder="https://..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} /> },
+                                ].map(f => (
+                                    <div key={f.label}>
+                                        <label style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{f.label}</label>
+                                        {f.el}
+                                    </div>
+                                ))}
+                                <div>
+                                    <label style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Lampiran</label>
+                                    <div style={{ border: '2px dashed #c7d2fe', borderRadius: 12, padding: 14, textAlign: 'center', background: '#f5f3ff', position: 'relative', cursor: 'pointer' }}>
+                                        <input type="file" onChange={e => taskForm.setData('attachment', e.target.files[0])} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} />
+                                        <p style={{ fontSize: 12, fontWeight: 600, color: taskForm.data.attachment ? '#6366f1' : '#94a3b8', margin: 0 }}>
+                                            {taskForm.data.attachment ? `📎 ${taskForm.data.attachment.name}` : 'Pilih file atau seret ke sini'}
                                         </p>
                                     </div>
-                                    <input type="file" className="hidden" onChange={e => taskForm.setData('attachment', e.target.files[0])} />
-                                </label>
+                                </div>
+                                <button type="submit" disabled={taskForm.processing} style={{ padding: '12px', borderRadius: 12, background: '#1e293b', color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', marginTop: 4, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                                    {taskForm.processing ? 'Menyimpan...' : 'Simpan Tugas'}
+                                </button>
+                            </form>
+                        </>
+                    )
+                },
+                {
+                    show: isAct, onClose: () => setIsAct(false), maxW: 460, content: (
+                        <>
+                            <h3 style={{ fontSize: 19, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Update Progres</h3>
+                            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 14px' }}>Catat apa yang sudah dikerjakan</p>
+                            <textarea value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)}
+                                style={{ ...S.input, height: 110, resize: 'none', marginBottom: 14 }} placeholder="Detail progres..." />
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                <button onClick={() => submitProgress('in_progress')} style={{ flex: 1, padding: '12px', borderRadius: 12, background: '#f1f5f9', color: '#475569', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>Simpan Progress</button>
+                                <button onClick={() => submitProgress('done')} style={{ flex: 1, padding: '12px', borderRadius: 12, background: '#22c55e', color: 'white', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(34,197,94,0.3)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>✓ Selesai</button>
                             </div>
-                            <button type="submit" disabled={taskForm.processing} className="w-full py-4 bg-slate-900 dark:bg-blue-600 text-white rounded-xl font-bold text-sm active:scale-95 transition-all disabled:opacity-50 mt-2">
-                                {taskForm.processing ? 'Menyimpan...' : 'Simpan Tugas'}
-                            </button>
-                        </form>
+                        </>
+                    )
+                },
+            ].map((m, i) => m.show && (
+                <div key={i} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                    <div style={{ background: 'white', borderRadius: 24, width: '100%', maxWidth: m.maxW, padding: 28, position: 'relative', boxShadow: '0 24px 60px rgba(0,0,0,0.18)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        <button onClick={m.onClose} style={{ position: 'absolute', top: 18, right: 18, width: 28, height: 28, borderRadius: 8, background: '#f1f5f9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#64748b" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        {m.content}
                     </div>
                 </div>
-            )}
-
-            {isActionModalOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 dark:bg-[#0b1120]/80 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] w-full max-w-lg relative border border-slate-100 dark:border-slate-800 shadow-2xl animate-in zoom-in-95">
-                        <button onClick={() => setIsActionModalOpen(false)} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full transition-colors">✕</button>
-                        <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Update Progres</h3>
-
-                        <div className="space-y-5">
-                            <div className="space-y-1.5">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide ml-1">Catatan Pengerjaan</label>
-                                <textarea
-                                    className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl h-28 text-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
-                                    placeholder="Ceritakan progresmu hari ini..."
-                                    value={taskForm.data.title}
-                                    onChange={e => taskForm.setData('title', e.target.value)}
-                                />
-                            </div>
-                            <div className="flex gap-3 pt-2">
-                                <button onClick={() => submitProgress('in_progress')} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white rounded-xl font-bold text-sm active:scale-95 transition-all">Simpan Draft</button>
-                                <button onClick={() => submitProgress('done')} className="flex-1 py-4 bg-emerald-500 text-white rounded-xl font-bold text-sm active:scale-95 transition-all shadow-md shadow-emerald-500/20">Selesai ✓</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            ))}
         </AuthenticatedLayout>
     );
 }
