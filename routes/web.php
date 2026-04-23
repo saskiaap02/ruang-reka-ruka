@@ -77,7 +77,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Generate AI Plan & Smart Grouping Eksekusi
         Route::post('/ai-generate-plot/{classId}', [DosenDashboard::class, 'generateAIPlan'])->name('ai.generate');
-        Route::post('/smart-grouping', [DosenDashboard::class, 'generateSmartGrouping'])->name('smart-grouping'); // <-- ROUTE BARU DITAMBAHKAN DI SINI
+        Route::post('/smart-grouping', [DosenDashboard::class, 'generateSmartGrouping'])->name('smart-grouping');
         
         Route::get('/kelas/{id}/ekspor-siakad', [DosenDashboard::class, 'eksporSiakad'])->name('kelas.ekspor');
 
@@ -89,6 +89,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/kelompok/{id}', [DosenDashboard::class, 'showKelompok'])->name('kelompok.show');
         Route::post('/audit/{groupId}/{studentId}', [DosenDashboard::class, 'auditStudent'])->name('audit.student');
         Route::post('/colek', [DosenDashboard::class, 'sendNudge'])->name('colek');
+
+        // Rute untuk Dosen membuka sesi Peer Review
+        Route::post('/buka-peer-review/{groupId}', [DosenDashboard::class, 'openPeerReview'])->name('peer-review.open');
     });
 
     // --- PROFILE MANAGEMENT ---
