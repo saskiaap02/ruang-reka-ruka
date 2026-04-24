@@ -95,6 +95,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Rute untuk Dosen membuka sesi Peer Review
         Route::post('/buka-peer-review/{groupId}', [DosenDashboard::class, 'openPeerReview'])->name('peer-review.open');
+
+        //untuk hapus kelompok
+        Route::delete('/kelompok/{id}', [KelompokController::class, 'destroy'])
+        ->name('dosen.kelompok.destroy');
     });
 
     // --- PROFILE MANAGEMENT ---
