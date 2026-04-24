@@ -786,4 +786,13 @@ class DashboardController extends Controller
             return back()->with('error', 'Gagal membuka sesi Peer Review: ' . $e->getMessage());
         }
     }
+
+    public function destroy($id)
+    {
+        $kelompok = Kelompok::findOrFail($id);
+        $kelompok->delete();
+
+        return back()->with('success', 'Kelompok berhasil dihapus');
+    }
+
 }
