@@ -124,7 +124,7 @@ class DashboardController extends Controller
                     ->exists();
 
                 if (!$sudahDikirim) {
-                    $dosenUser->notify(new DosenAlertNotification($pesanNotif, "warning"));
+                    Auth::user()->notify(new DosenAlertNotification($pesanNotif, "warning"));
                 }
             }
             // ──────────────────────────────────────────────────────────────
@@ -658,11 +658,16 @@ class DashboardController extends Controller
                     ->first();
 
                 // Rata-rata peer review yang diterima user ini
-                $peerAvg = DB::table('peer_reviews')
+                $peerScores = DB::table('peer_reviews')
                     ->where('group_id', $id)
-                    ->where('reviewee_id', $user->id)
+                    ->where('reviewee_id', $user->id) // PASTIKAN INI ADALAH reviewee_id (Yang Dinilai)
                     ->whereNotNull('score')
-                    ->avg('score');
+                    ->pluck('score');
+                    
+                // Hitung manual agar lebih aman
+                $peerAvg = $peerScores->count() > 0 
+                           ? $peerScores->sum() / $peerScores->count() 
+                           : null;
 
                 $user->last_activity  = $lastLog
                     ? Carbon::parse($lastLog->created_at)->diffForHumans()
@@ -722,11 +727,13 @@ class DashboardController extends Controller
         $nilaiAudit = $request->nilai_audit;
 
         // Ambil rata-rata peer review untuk mahasiswa ini di kelompok ini
-        $nilaiPeer = DB::table('peer_reviews')
+        $peerScores = DB::table('peer_reviews')
             ->where('group_id', $groupId)
-            ->where('reviewee_id', $studentId)
+            ->where('reviewee_id', $studentId) // Pastikan ini reviewee_id
             ->whereNotNull('score')
-            ->avg('score') ?? 0;
+            ->pluck('score');
+            
+        $nilaiPeer = $peerScores->count() > 0 ? ($peerScores->sum() / $peerScores->count()) : 0;
 
         $total = (($nilaiDasar * $config->bobot_dasar) +
                   ($nilaiAudit * $config->bobot_audit) +
@@ -850,13 +857,12 @@ class DashboardController extends Controller
             return back()->with('error', 'Gagal membuka sesi Peer Review: ' . $e->getMessage());
         }
     }
-    
+
     public function destroy($id)
     {
-        $kelompok = Kelompok::findOrFail($id);
-        $kelompok->delete();
+    DB::table('groups')->where('id', $id)->delete();
 
-        return back()->with('success', 'Kelompok berhasil dihapus');
+    return back()->with('success', 'Kelompok berhasil dihapus');
     }
 
 }
