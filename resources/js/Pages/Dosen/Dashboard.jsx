@@ -337,6 +337,7 @@ export default function Dashboard({
                         </div>
                         <div style={{ padding: 20 }}>
                             <GroupInitation
+                                auth={auth}
                                 groupForm={groupForm}
                                 memberForm={memberForm}
                                 daftarKelas={daftarKelas}
