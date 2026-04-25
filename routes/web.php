@@ -99,6 +99,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //untuk hapus kelompok
         Route::delete('/kelompok/{id}', [KelompokController::class, 'destroy'])
         ->name('dosen.kelompok.destroy');
+
+        Route::post('/dosen/notifikasi/{id}/read', function ($id) {
+        $notification = auth()->user()->notifications()->find($id);
+        if ($notification) {
+            $notification->markAsRead();
+        }
+        return back();
+        })->name('dosen.notifications.read')->middleware(['auth']);
     });
 
     // --- PROFILE MANAGEMENT ---
