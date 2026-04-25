@@ -8,8 +8,16 @@ export default function AuthenticatedLayout({ user, header, children }) {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
 
-    const nudges = props.nudges || [];
-    const unreadCount = nudges.filter(n => !n.is_read).length;
+    // ─── LOGIKA MULTI-ROLE NOTIFIKASI ──────────────────────────────────────
+    const isDosen = user.role === 'dosen';
+
+    // Jika Dosen, ambil dari props.notifications. Jika Mahasiswa, ambil dari props.nudges.
+    const notificationsList = isDosen ? (props.notifications || []) : (props.nudges || []);
+
+    // Hitung jumlah yang belum dibaca
+    const unreadCount = isDosen
+        ? (props.unreadNotificationsCount || 0)
+        : notificationsList.filter(n => !n.is_read).length;
 
     useEffect(() => {
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -62,9 +70,8 @@ export default function AuthenticatedLayout({ user, header, children }) {
                 <nav className="p-4 space-y-1.5">
                     <p className="text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-500 mb-3 px-3 uppercase">Menu Utama</p>
 
-                    {/* Menu 1: Dashboard Kelas */}
                     <Link
-                        href={user.role === 'dosen' ? route('dosen.dashboard') : route('mahasiswa.dashboard')}
+                        href={isDosen ? route('dosen.dashboard') : route('mahasiswa.dashboard')}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${url.includes('/dashboard')
                             ? 'bg-blue-50 text-blue-700 dark:bg-blue-600 dark:text-white font-bold shadow-sm dark:shadow-blue-900/20'
                             : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
@@ -75,14 +82,10 @@ export default function AuthenticatedLayout({ user, header, children }) {
                         <span className="text-sm">Dashboard Kelas</span>
                     </Link>
 
-                    {/* FITUR KALENDER DIHAPUS DARI SINI */}
-
-                    {/* Spasi ekstra sebelum Pengaturan agar rapi */}
                     <div className="pt-4"></div>
 
                     <p className="text-[10px] font-bold tracking-widest text-slate-400 dark:text-slate-500 mb-3 px-3 uppercase">Pengaturan</p>
 
-                    {/* Menu 2: Profil & Pengaturan */}
                     <Link
                         href={route('profile.edit')}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${url.includes('/profile')
@@ -95,7 +98,6 @@ export default function AuthenticatedLayout({ user, header, children }) {
                         <span className="text-sm">Pengaturan Akun</span>
                     </Link>
 
-                    {/* Menu 3: Logout (Merah) */}
                     <Link
                         href={route('logout')}
                         method="post"
@@ -113,7 +115,6 @@ export default function AuthenticatedLayout({ user, header, children }) {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
 
-                        {/* Kiri: Tombol Hamburger & Logo RuKa */}
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setIsSidebarOpen(true)}
@@ -124,7 +125,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
                                 </svg>
                             </button>
 
-                            <Link href={user.role === 'dosen' ? route('dosen.dashboard') : route('mahasiswa.dashboard')} className="flex items-center gap-2 group">
+                            <Link href={isDosen ? route('dosen.dashboard') : route('mahasiswa.dashboard')} className="flex items-center gap-2 group">
                                 <div className="flex items-center gap-1.5">
                                     <span className="bg-blue-600 text-white px-2 py-1 rounded-lg text-sm font-black tracking-tighter shadow-lg shadow-blue-600/20 group-hover:scale-105 transition-transform">
                                         Ru
@@ -143,10 +144,7 @@ export default function AuthenticatedLayout({ user, header, children }) {
                             </Link>
                         </div>
 
-                        {/* Kanan: Dark Mode, Notifikasi, Profil */}
                         <div className="flex items-center gap-2 sm:gap-4">
-
-                            {/* 1. Tombol Dark Mode */}
                             <button
                                 onClick={toggleDarkMode}
                                 className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
@@ -180,27 +178,46 @@ export default function AuthenticatedLayout({ user, header, children }) {
                                         <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
                                         <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                                             <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
-                                                <h3 className="text-sm font-bold text-slate-800 dark:text-white">Riwayat Peringatan</h3>
+                                                <h3 className="text-sm font-bold text-slate-800 dark:text-white">Riwayat Pemberitahuan</h3>
                                             </div>
                                             <div className="max-h-80 overflow-y-auto">
-                                                {nudges.length > 0 ? (
-                                                    nudges.map((notif) => (
-                                                        <div key={notif.id} className="p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                                            <div className="flex gap-3">
-                                                                <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 text-red-500 flex items-center justify-center shrink-0 mt-0.5">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" /></svg>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">{notif.message}</p>
-                                                                    <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">{new Date(notif.created_at).toLocaleDateString('id-ID')}</p>
+                                                {notificationsList.length > 0 ? (
+                                                    notificationsList.map((notif) => {
+                                                        // Tentukan isi pesan dan status baca berdasarkan Role
+                                                        const message = isDosen ? notif.data?.message : notif.message;
+                                                        const isRead = isDosen ? (notif.read_at !== null) : notif.is_read;
+                                                        const date = new Date(notif.created_at).toLocaleDateString('id-ID');
+                                                        const markReadUrl = isDosen
+                                                            ? route('dosen.notifications.read', notif.id)
+                                                            : route('mahasiswa.colek.read', notif.id);
+
+                                                        return (
+                                                            <div key={notif.id} className={`p-4 border-b border-slate-50 dark:border-slate-700/50 transition-colors ${!isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
+                                                                <div className="flex gap-3">
+                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${!isRead ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" /></svg>
+                                                                    </div>
+                                                                    <div className="flex-1">
+                                                                        <p className={`text-xs font-medium leading-relaxed ${!isRead ? 'text-slate-800 dark:text-slate-200' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                                            {message}
+                                                                        </p>
+                                                                        <div className="flex justify-between items-center mt-2">
+                                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{date}</p>
+                                                                            {!isRead && (
+                                                                                <Link href={markReadUrl} method="post" as="button" preserveScroll className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline">
+                                                                                    Tandai Dibaca
+                                                                                </Link>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    ))
+                                                        );
+                                                    })
                                                 ) : (
                                                     <div className="p-8 text-center text-slate-400">
                                                         <span className="text-3xl mb-2 block">🎉</span>
-                                                        <p className="text-xs font-medium">Belum ada riwayat peringatan.</p>
+                                                        <p className="text-xs font-medium">Belum ada riwayat pemberitahuan.</p>
                                                     </div>
                                                 )}
                                             </div>
