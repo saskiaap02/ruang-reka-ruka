@@ -197,6 +197,9 @@ class DashboardController extends Controller
                 ->count()
             : 0;
 
+            $notifications = Auth::user()->notifications()->take(5)->get();
+            $unreadNotificationsCount = Auth::user()->unreadNotifications()->count();
+
         return Inertia::render('Dosen/Dashboard', [
             'totalKelasAktif'         => $totalKelasAktif,
             'totalKelompok'           => $totalKelompok,
