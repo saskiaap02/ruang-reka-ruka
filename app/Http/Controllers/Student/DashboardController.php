@@ -9,9 +9,11 @@ use App\Models\ProjectClass;
 use App\Models\ClassStudent;
 use App\Models\ActivityLog;
 use App\Models\Group;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Notifications\DosenAlertNotification;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -55,14 +57,11 @@ class DashboardController extends Controller
         $user    = Auth::user();
         $myClass = ProjectClass::findOrFail($id);
 
-        // 1. Cek apakah mahasiswa ini approved di kelas ini
         $enrollment = DB::table('class_students')
             ->where('student_id', $user->id)
             ->where('project_class_id', $id)
             ->first();
 
-        // 2. Ambil Kelompok Mahasiswa secara manual (menghindari error relasi model)
-        // Kita cari tahu dulu apakah user punya group_id di kelas ini
         $myGroupId = DB::table('group_members')
             ->join('groups', 'group_members.group_id', '=', 'groups.id')
             ->where('groups.project_class_id', $id)
@@ -78,43 +77,35 @@ class DashboardController extends Controller
         $myTotalReviewers = 0;
 
         if ($myGroupId) {
-            // Ambil data group utuh
             $myGroup = Group::find($myGroupId);
             
-            // Ambil anggota kelompok secara eksplisit
             $membersData = DB::table('group_members')
                 ->join('users', 'group_members.student_id', '=', 'users.id')
                 ->where('group_members.group_id', $myGroupId)
                 ->select('users.id', 'users.name')
                 ->get();
                 
-            // Tempelkan members ke object myGroup agar formatnya sesuai dengan ekspektasi Frontend
             if($myGroup) {
                 $myGroup->members = $membersData;
             }
 
-            // Ambil Tasks
             $tasks = Task::where('group_id', $myGroupId)
-                ->leftJoin('users', 'tasks.pic_id', '=', 'users.id') // leftJoin jaga-jaga kalau pic_id null
+                ->leftJoin('users', 'tasks.pic_id', '=', 'users.id')
                 ->select('tasks.*', 'users.name as pic_name')
                 ->orderBy('tasks.created_at', 'desc')
                 ->get();
 
-            // Ambil Logs
             $logs = ActivityLog::where('group_id', $myGroupId)
                 ->join('users', 'activity_logs.user_id', '=', 'users.id')
                 ->select('activity_logs.*', 'users.name as user_name')
                 ->orderBy('activity_logs.created_at', 'desc')
                 ->get();
 
-            // ── PEER REVIEWS ──────────────────────────────────────────────────────
-            // Ambil semua peer review yang melibatkan user ini (sebagai reviewer)
-            // KODE BENAR: Kita hanya mengambil row dimana reviewer_id adalah user yang login
             $peerReviews = DB::table('peer_reviews')
                 ->join('users as reviewee', 'peer_reviews.reviewee_id', '=', 'reviewee.id')
                 ->join('users as reviewer', 'peer_reviews.reviewer_id', '=', 'reviewer.id')
                 ->where('peer_reviews.group_id', $myGroupId)
-                ->where('peer_reviews.reviewer_id', $user->id) // HANYA YANG HARUS DINILAI OLEH USER INI
+                ->where('peer_reviews.reviewer_id', $user->id) 
                 ->select(
                     'peer_reviews.id',
                     'peer_reviews.reviewer_id',
@@ -126,7 +117,6 @@ class DashboardController extends Controller
                 )
                 ->get();
 
-            // Tambahkan info nilai rata-rata yang diterima user ini
             $myReceivedScores = DB::table('peer_reviews')
                 ->where('group_id', $myGroupId)
                 ->where('reviewee_id', $user->id)
@@ -163,7 +153,7 @@ class DashboardController extends Controller
             'logs'                  => $logs,
             'joinedClasses'         => $joinedClasses,
             'nudges'                => $nudges,
-            'peerReviews'           => $peerReviews, // Data dikirim ke frontend
+            'peerReviews'           => $peerReviews, 
             'myPeerScore'           => $myAvgScore,
             'myPeerReviewedCount'   => $myReviewedCount,
             'myPeerTotalReviewers'  => $myTotalReviewers,
@@ -187,7 +177,6 @@ class DashboardController extends Controller
             return back()->withErrors(['invite_code' => 'Kode kelas tidak ditemukan.']);
         }
 
-        // Cek sudah terdaftar
         $existing = DB::table('class_students')
             ->where('student_id', Auth::id())
             ->where('project_class_id', $class->id)
@@ -205,6 +194,16 @@ class DashboardController extends Controller
             'updated_at'       => now(),
         ]);
 
+        // ── NOTIFIKASI JOIN KELAS ──
+        $dosen = User::find($class->dosen_id);
+        if ($dosen) {
+            $namaMhs = Auth::user()->name;
+            $dosen->notify(new DosenAlertNotification(
+                "🔔 Permintaan Bergabung: {$namaMhs} meminta persetujuan untuk masuk ke kelas {$class->nama_kelas}.", 
+                "info"
+            ));
+        }
+
         return back()->with('message', 'Permintaan gabung dikirim! Tunggu approval dosen.');
     }
 
@@ -221,7 +220,6 @@ class DashboardController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar,doc,docx,xlsx,xls|max:5120',
         ]);
 
-        // Keamanan: pastikan mahasiswa ada di kelompok ini
         $isMember = GroupMember::where('student_id', Auth::id())
             ->where('group_id', $request->group_id)
             ->exists();
@@ -288,7 +286,6 @@ class DashboardController extends Controller
             'file_path' => $filePath,
         ]);
 
-        // Catat log HANYA jika berpindah status
         if ($newStatus !== $oldStatus) {
             $desc = match ($newStatus) {
                 'in_progress' => "Memulai pengerjaan: {$task->judul}",
@@ -303,6 +300,28 @@ class DashboardController extends Controller
                 'action_type' => $newStatus === 'done' ? 'task_completed' : 'task_progress',
                 'description' => $desc,
             ]);
+
+            // ── NOTIFIKASI MILESTONE TUGAS ──
+            if ($newStatus === 'done') {
+                $totalTugas = DB::table('tasks')->where('group_id', $task->group_id)->count();
+                $tugasSelesai = DB::table('tasks')->where('group_id', $task->group_id)->where('status', 'done')->count();
+
+                if ($totalTugas > 0 && $totalTugas == $tugasSelesai) {
+                    $group = DB::table('groups')
+                        ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
+                        ->where('groups.id', $task->group_id)
+                        ->select('project_classes.dosen_id', 'groups.nama_kelompok')
+                        ->first();
+
+                    $dosen = User::find($group->dosen_id);
+                    if ($dosen) {
+                        $dosen->notify(new DosenAlertNotification(
+                            "🚀 Milestone Tercapai: Kelompok '{$group->nama_kelompok}' telah menyelesaikan 100% tugas di Kanban!", 
+                            "success"
+                        ));
+                    }
+                }
+            }
         }
 
         return back();
@@ -334,7 +353,7 @@ class DashboardController extends Controller
     {
         DB::table('nudges')
             ->where('id', $id)
-            ->where('student_id', Auth::id()) // keamanan
+            ->where('student_id', Auth::id()) 
             ->update(['is_read' => true]);
 
         return back();
@@ -356,12 +375,10 @@ class DashboardController extends Controller
             return back()->with('error', 'Data penilaian tidak ditemukan.');
         }
 
-        // Keamanan: hanya reviewer yang sah
         if ($review->reviewer_id !== Auth::id()) {
             return back()->with('error', 'Akses ditolak!');
         }
 
-        // Jangan izinkan mengubah nilai yang sudah diisi
         if ($review->score !== null) {
             return back()->with('error', 'Penilaian sudah disubmit dan tidak bisa diubah.');
         }
@@ -374,7 +391,6 @@ class DashboardController extends Controller
                 'updated_at'    => now(),
             ]);
 
-        // Catat ke activity log
         ActivityLog::create([
             'user_id'     => Auth::id(),
             'group_id'    => $review->group_id,
@@ -382,6 +398,37 @@ class DashboardController extends Controller
             'action_type' => 'peer_review',
             'description' => 'Menyelesaikan peer review untuk rekan setim.',
         ]);
+
+        // ── NOTIFIKASI PEER REVIEW RAMPUNG ──
+        $belumDinilai = DB::table('peer_reviews')
+            ->where('group_id', $review->group_id)
+            ->whereNull('score')
+            ->count();
+
+        if ($belumDinilai === 0) {
+            $group = DB::table('groups')
+                ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
+                ->where('groups.id', $review->group_id)
+                ->select('project_classes.dosen_id', 'groups.nama_kelompok')
+                ->first();
+
+            $dosen = User::find($group->dosen_id);
+            
+            // Cek spam notif
+            if ($dosen) {
+                $sudahLapor = DB::table('notifications')
+                    ->where('notifiable_id', $dosen->id)
+                    ->where('data', 'like', '%Peer Review Rampung: Kelompok \'' . $group->nama_kelompok . '\'%')
+                    ->exists();
+
+                if (!$sudahLapor) {
+                    $dosen->notify(new DosenAlertNotification(
+                        "✅ Peer Review Rampung: Seluruh anggota kelompok '{$group->nama_kelompok}' telah saling menilai. Siap diekspor!", 
+                        "success"
+                    ));
+                }
+            }
+        }
 
         return back()->with('success', 'Penilaian berhasil disimpan!');
     }
