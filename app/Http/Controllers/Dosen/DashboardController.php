@@ -651,13 +651,30 @@ class DashboardController extends Controller
             ->select('users.id', 'users.name', 'users.email', 'group_members.nilai_akhir', 'group_members.nilai_audit')
             ->get()
             ->map(function ($user) use ($id) {
+                // 1. Ambil log terakhir untuk waktu aktif
                 $lastLog = DB::table('activity_logs')
                     ->where('group_id', $id)
                     ->where('user_id', $user->id)
                     ->orderBy('created_at', 'desc')
                     ->first();
 
-                // Rata-rata peer review yang diterima user ini
+                // 2. Hitung SKOR AUDIT AI SAAT INI (berdasarkan jumlah log)
+                $logCountCurrent = DB::table('activity_logs')
+                    ->where('group_id', $id)
+                    ->where('user_id', $user->id)
+                    ->count();
+                $user->ai_audit_score = min(100, $logCountCurrent * 5); // 1 aktivitas = 5 poin
+
+                // 3. Set status keaktifan mahasiswa
+                $user->last_activity  = $lastLog
+                    ? Carbon::parse($lastLog->created_at)->diffForHumans()
+                    : 'Tidak ada aktivitas';
+                
+                $user->is_inactive    = $lastLog
+                    ? Carbon::parse($lastLog->created_at)->diffInDays(now()) >= 3
+                    : true;
+
+                // 4. Hitung rata-rata Peer Review yang diterima user ini
                 $peerScores = DB::table('peer_reviews')
                     ->where('group_id', $id)
                     ->where('reviewee_id', $user->id) // PASTIKAN INI ADALAH reviewee_id (Yang Dinilai)
@@ -669,12 +686,6 @@ class DashboardController extends Controller
                            ? $peerScores->sum() / $peerScores->count() 
                            : null;
 
-                $user->last_activity  = $lastLog
-                    ? Carbon::parse($lastLog->created_at)->diffForHumans()
-                    : 'Tidak ada aktivitas';
-                $user->is_inactive    = $lastLog
-                    ? Carbon::parse($lastLog->created_at)->diffInDays(now()) >= 3
-                    : true;
                 $user->avg_peer_score = $peerAvg ? round($peerAvg, 1) : null;
 
                 return $user;
