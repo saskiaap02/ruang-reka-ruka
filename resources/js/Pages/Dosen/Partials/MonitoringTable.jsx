@@ -12,10 +12,12 @@ export default function MonitoringTable({ daftarKelompok }) {
             setToast({ type: 'success', message: flash.success });
         } else if (flash?.error) {
             setToast({ type: 'error', message: flash.error });
+        } else if (flash?.info) {
+            setToast({ type: 'info', message: flash.info });
         }
 
-        if (flash?.success || flash?.error) {
-            setTimeout(() => setToast(null), 3000);
+        if (flash?.success || flash?.error || flash?.info) {
+            setTimeout(() => setToast(null), 4000);
         }
     }, [flash]);
 
@@ -29,16 +31,16 @@ export default function MonitoringTable({ daftarKelompok }) {
     };
 
     return (
-        <div className="bg-slate-900/40 backdrop-blur-xl overflow-hidden rounded-[2.5rem] border border-slate-800 shadow-2xl">
+        <div className="bg-slate-900/40 backdrop-blur-xl overflow-hidden rounded-[2.5rem] border border-slate-800 shadow-2xl relative">
 
             {/* 🔥 TOAST */}
             {toast && (
-                <div className={`fixed top-5 right-5 z-50 px-6 py-4 rounded-xl shadow-xl text-xs font-black uppercase tracking-widest transition-all
-                    ${toast.type === 'success'
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-red-500 text-white'
+                <div className={`absolute top-5 right-8 z-50 px-6 py-4 rounded-xl shadow-2xl text-xs font-black uppercase tracking-widest transition-all animate-bounce
+                    ${toast.type === 'success' ? 'bg-emerald-500 text-white' :
+                        toast.type === 'error' ? 'bg-red-500 text-white' :
+                            'bg-blue-500 text-white'
                     }`}>
-                    {toast.type === 'success' ? '✅ ' : '❌ '}
+                    {toast.type === 'success' ? '✅ ' : toast.type === 'error' ? '❌ ' : 'ℹ️ '}
                     {toast.message}
                 </div>
             )}
@@ -77,8 +79,8 @@ export default function MonitoringTable({ daftarKelompok }) {
 
                                     <td className="p-6">
                                         <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg uppercase tracking-widest border ${kelompok.status === 'Aman'
-                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                                : 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse'
+                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                            : 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse'
                                             }`}>
                                             {kelompok.status}
                                         </span>
@@ -92,10 +94,10 @@ export default function MonitoringTable({ daftarKelompok }) {
                                             <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden shadow-inner">
                                                 <div
                                                     className={`h-full transition-all duration-1000 ${parseInt(kelompok.progress) > 70
-                                                            ? 'bg-emerald-500'
-                                                            : parseInt(kelompok.progress) > 30
-                                                                ? 'bg-blue-500'
-                                                                : 'bg-orange-600'
+                                                        ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                                                        : parseInt(kelompok.progress) > 30
+                                                            ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]'
+                                                            : 'bg-orange-600 shadow-[0_0_10px_rgba(234,88,12,0.5)]'
                                                         }`}
                                                     style={{ width: `${kelompok.progress}%` }}
                                                 ></div>
@@ -104,7 +106,7 @@ export default function MonitoringTable({ daftarKelompok }) {
                                     </td>
 
                                     <td className="p-6 text-[11px] italic text-slate-500 font-medium">
-                                        “{kelompok.log_terakhir || 'Belum ada aktivitas'}”
+                                        <span className="text-slate-700">“</span>{kelompok.log_terakhir || 'Belum ada aktivitas'}<span className="text-slate-700">”</span>
                                     </td>
 
                                     <td className="p-6 text-center">
@@ -113,23 +115,26 @@ export default function MonitoringTable({ daftarKelompok }) {
                                             {/* DETAIL */}
                                             <Link
                                                 href={route('dosen.kelompok.show', { id: kelompok.id })}
-                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-400 border border-blue-500/30 px-4 py-2.5 rounded-2xl hover:bg-blue-600 hover:text-white transition-all"
+                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-400 border border-blue-500/30 px-4 py-2.5 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-lg shadow-blue-900/20 active:scale-95"
                                             >
-                                                Detail
+                                                Detail Audit
                                             </Link>
 
-                                            {/* PEER REVIEW */}
-                                            <button
-                                                onClick={() => router.post(route('dosen.peer-review.open', kelompok.id))}
-                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-purple-400 border border-purple-500/30 px-4 py-2.5 rounded-2xl hover:bg-purple-600 hover:text-white transition-all"
+                                            {/* PEER REVIEW dengan preserveScroll */}
+                                            <Link
+                                                href={route('dosen.peer-review.open', kelompok.id)}
+                                                method="post"
+                                                as="button"
+                                                preserveScroll={true}
+                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-purple-400 border border-purple-500/30 px-4 py-2.5 rounded-2xl hover:bg-purple-600 hover:text-white transition-all shadow-lg shadow-purple-900/20 active:scale-95"
                                             >
-                                                Peer Review
-                                            </button>
+                                                Buka Peer Review
+                                            </Link>
 
                                             {/* 🔥 DELETE */}
                                             <button
                                                 onClick={() => handleDelete(kelompok.id, kelompok.nama)}
-                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-red-400 border border-red-500/30 px-4 py-2.5 rounded-2xl hover:bg-red-600 hover:text-white transition-all"
+                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-red-400 border border-red-500/30 px-4 py-2.5 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-900/20 active:scale-95"
                                             >
                                                 Hapus
                                             </button>
