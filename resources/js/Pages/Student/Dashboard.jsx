@@ -144,8 +144,18 @@ export default function Dashboard({
     const isPending = currentRel?.status === 'pending';
 
     const joinForm = useForm({ invite_code: '' });
+
+    // Ditambahkan description, existing_file, dan remove_existing
     const taskForm = useForm({
-        group_id: myGroup?.id, title: '', status: 'backlog', attachment: null, link: '',
+        id: null,
+        group_id: myGroup?.id,
+        title: '',
+        description: '', // Tambahan untuk deskripsi
+        status: 'backlog',
+        attachment: null,
+        link: '',
+        existing_file: null,    // Menyimpan path file lama
+        remove_existing: false  // Flag penanda jika file lama dihapus
     });
 
     /* ── Handlers ────────────────────────────────────────────────────────── */
@@ -158,10 +168,17 @@ export default function Dashboard({
 
     const submitTask = e => {
         e.preventDefault();
-        taskForm.post(route('mahasiswa.task.store'), {
-            forceFormData: true,
-            onSuccess: () => { setIsTask(false); taskForm.reset('title', 'attachment', 'link'); },
-        });
+        if (taskForm.data.id) {
+            taskForm.post(route('mahasiswa.task.store', taskForm.data.id), {
+                forceFormData: true,
+                onSuccess: () => { setIsTask(false); taskForm.reset(); },
+            });
+        } else {
+            taskForm.post(route('mahasiswa.task.store'), {
+                forceFormData: true,
+                onSuccess: () => { setIsTask(false); taskForm.reset(); },
+            });
+        }
     };
 
     const confirmDelete = id => {
@@ -170,8 +187,34 @@ export default function Dashboard({
 
     const openTaskModal = status => {
         taskForm.clearErrors();
-        taskForm.setData({ group_id: myGroup?.id, title: '', status, attachment: null, link: '' });
+        taskForm.setData({
+            id: null, group_id: myGroup?.id, title: '', description: '',
+            status, attachment: null, link: '', existing_file: null, remove_existing: false
+        });
         setIsTask(true);
+    };
+
+    const handleEditTask = (task) => {
+        taskForm.clearErrors();
+        taskForm.setData({
+            id: task.id,
+            group_id: task.group_id,
+            title: task.title || task.judul || '',
+            description: task.description || task.deskripsi || '', // Sesuaikan nama properti dgn database-mu
+            status: task.status,
+            link: task.link || '',
+            attachment: null,
+            existing_file: task.file_path || null,
+            remove_existing: false
+        });
+        setIsTask(true);
+    };
+
+    const handleUpdateStatus = (id, newStatus) => {
+        router.post(route('mahasiswa.task.update-status', id), {
+            _method: 'post',
+            status: newStatus
+        }, { preserveScroll: true });
     };
 
     const handleNext = id => {
@@ -227,7 +270,7 @@ export default function Dashboard({
             <div className="min-h-screen pb-20 font-sans">
                 <div className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-8 pt-8">
 
-                    {/* ── NUDGE ALERTS ──────────────────────────────────────── */}
+                    {/* NUDGE ALERTS */}
                     {nudges?.filter(n => !n.is_read).map(nudge => (
                         <div key={nudge.id} className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 shadow-sm">
                             <div className="flex gap-4 items-center">
@@ -248,9 +291,7 @@ export default function Dashboard({
                         </div>
                     ))}
 
-                    {/* ══════════════════════════════════════════════
-                        TAMPILAN 1: KATALOG KELAS (myClass === null)
-                    ══════════════════════════════════════════════ */}
+                    {/* TAMPILAN 1: KATALOG KELAS */}
                     {!myClass ? (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="mb-8">
@@ -264,30 +305,21 @@ export default function Dashboard({
                                         className={`relative overflow-hidden rounded-3xl p-6 flex flex-col justify-between h-48 border border-slate-100 dark:border-slate-700/60 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group ${CARD_GRADS[idx % CARD_GRADS.length]}`}
                                     >
                                         <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-white/30 dark:bg-white/5 blur-2xl pointer-events-none group-hover:scale-150 transition-transform duration-700" />
-
                                         <div className="relative z-10">
                                             <div className="flex justify-between items-start mb-3">
-                                                {/* Ini sekarang jadi nama kelas (badge kecil) */}
                                                 <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/20 dark:border-slate-700/50">
                                                     {item.project_class?.nama_kelas}
                                                 </span>
-
                                                 <span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider shrink-0 ml-2
-            ${item.status === 'pending'
-                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
-                                                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'}`}
+                                                    ${item.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'}`}
                                                 >
                                                     {item.status === 'pending' ? '⏳ Pending' : '✓ Aktif'}
                                                 </span>
                                             </div>
-
-                                            {/* Ini sekarang jadi nama Mata Kuliah (teks besar dominan) */}
-                                            {/* Saya tambahkan line-clamp-2 agar kalau nama matkulnya panjang, tidak merusak tinggi kartu */}
                                             <h3 className="text-xl font-extrabold text-slate-800 dark:text-white leading-tight mt-4 line-clamp-2" title={item.project_class?.mata_kuliah}>
                                                 {item.project_class?.mata_kuliah}
                                             </h3>
                                         </div>
-
                                         <Link href={route('mahasiswa.kelas.show', item.project_class_id)}
                                             className="relative z-10 flex items-center justify-between bg-white/70 dark:bg-slate-900/70 backdrop-blur-md rounded-xl p-3 text-sm font-bold text-slate-800 dark:text-white hover:bg-white dark:hover:bg-slate-900 transition-colors group/btn">
                                             {item.status === 'pending' ? 'Cek Status' : 'Buka Ruang'}
@@ -295,6 +327,7 @@ export default function Dashboard({
                                         </Link>
                                     </div>
                                 ))}
+
                             </div>
                         </div>
 
@@ -527,7 +560,15 @@ export default function Dashboard({
 
                             ) : tab === 'kanban' ? (
                                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                    <KanbanBoard tasks={tasks} myGroup={myGroup} openModal={openTaskModal} onNext={handleNext} handleDelete={confirmDelete} />
+                                    <KanbanBoard
+                                        tasks={tasks}
+                                        myGroup={myGroup}
+                                        openModal={openTaskModal}
+                                        onNext={handleNext}
+                                        handleDelete={confirmDelete}
+                                        updateStatus={handleUpdateStatus}
+                                        onEdit={handleEditTask}
+                                    />
                                 </div>
 
                             ) : tab === 'logs' ? (
@@ -607,34 +648,84 @@ export default function Dashboard({
                     show: isTask, close: () => setIsTask(false), maxW: "sm:max-w-md",
                     body: (
                         <>
-                            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Inisiasi Tugas Baru</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6">Tambahkan pekerjaan ke dalam papan kanban divisi kamu.</p>
+                            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">
+                                {taskForm.data.id ? 'Edit Tugas' : 'Inisiasi Tugas Baru'}
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-4">
+                                {taskForm.data.id ? 'Perbarui informasi tugas di papan kanban.' : 'Tambahkan pekerjaan ke dalam papan kanban divisi kamu.'}
+                            </p>
                             <form onSubmit={submitTask} className="flex flex-col gap-4">
-                                {[
-                                    { label: 'Deskripsi Tugas Utama', el: <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="Misal: Slicing UI Dashboard Admin..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus /> },
-                                    { label: 'Tautan Referensi (Opsional)', el: <input type="url" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="https://figma.com/..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} /> },
-                                ].map(f => (
-                                    <div key={f.label}>
-                                        <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">{f.label}</label>
-                                        {f.el}
-                                    </div>
-                                ))}
+                                {/* Judul */}
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Judul Tugas Utama</label>
+                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="Misal: Slicing UI Dashboard..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus />
+                                </div>
+
+                                {/* Deskripsi */}
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Detail Deskripsi</label>
+                                    <textarea className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all min-h-[80px] resize-none" placeholder="Tuliskan rincian tugas secara lengkap di sini..." value={taskForm.data.description} onChange={e => taskForm.setData('description', e.target.value)} />
+                                </div>
+
+                                {/* Link */}
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Tautan Referensi (Opsional)</label>
+                                    <input type="url" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="https://figma.com/..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} />
+                                </div>
+
+                                {/* Lampiran File dengan Logika Edit */}
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Dokumen Lampiran (Opsional)</label>
-                                    <div className="relative w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors cursor-pointer group">
-                                        <input type="file" onChange={e => taskForm.setData('attachment', e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                                        <div className="flex flex-col items-center gap-2">
-                                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 text-slate-500 transition-colors">
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+
+                                    {/* Jika mode Edit dan file lama ADA, tapi user BELUM klik Hapus */}
+                                    {taskForm.data.existing_file && !taskForm.data.remove_existing ? (
+                                        <div className="flex items-center justify-between p-4 border border-emerald-200 dark:border-emerald-500/30 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 transition-all">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                                    File Tersimpan
+                                                </span>
+                                                <a href={`/storage/${taskForm.data.existing_file}`} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                                    Lihat Dokumen ↗
+                                                </a>
                                             </div>
-                                            <p className={`text-sm font-bold m-0 ${taskForm.data.attachment ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                                                {taskForm.data.attachment ? taskForm.data.attachment.name : 'Klik atau seret file ke sini'}
-                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => taskForm.setData('remove_existing', true)}
+                                                className="bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-500/30 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                            >
+                                                Hapus
+                                            </button>
                                         </div>
-                                    </div>
+                                    ) : taskForm.data.attachment ? (
+                                        /* Jika user SUDAH memilih file baru */
+                                        <div className="flex items-center justify-between p-4 border border-indigo-200 dark:border-indigo-500/30 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 transition-all">
+                                            <span className="text-sm font-bold text-indigo-700 dark:text-indigo-400 truncate pr-4">{taskForm.data.attachment.name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => taskForm.setData('attachment', null)}
+                                                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-rose-500 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm shrink-0"
+                                            >
+                                                Batal
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        /* Kotak Dropzone Default (Kosong) */
+                                        <div className="relative w-full bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl px-4 py-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors cursor-pointer group">
+                                            <input type="file" onChange={e => taskForm.setData('attachment', e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                            <div className="flex flex-col items-center gap-2">
+                                                <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/20 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:border-indigo-200 dark:group-hover:border-indigo-500/30 text-slate-400 transition-colors">
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                                </div>
+                                                <p className="text-sm font-bold m-0 text-slate-500 dark:text-slate-400">
+                                                    Klik atau seret file ke sini
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <button type="submit" disabled={taskForm.processing} className="w-full mt-2 bg-slate-800 dark:bg-slate-100 hover:bg-slate-900 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl py-3.5 text-sm font-black tracking-widest uppercase shadow-md transition-all disabled:opacity-50">
-                                    {taskForm.processing ? 'Menyimpan ke DB...' : 'Simpan Tugas'}
+                                    {taskForm.processing ? 'Menyimpan...' : 'Simpan Tugas'}
                                 </button>
                             </form>
                         </>
@@ -665,7 +756,7 @@ export default function Dashboard({
                 },
             ].map((m, i) => m.show && (
                 <div key={i} className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={m.close} />
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={m.close} />
                     <div className={`relative w-full ${m.maxW} bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 dark:border-slate-700 animate-in zoom-in-95 duration-200`}>
                         <button onClick={m.close} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
