@@ -775,6 +775,74 @@ export default function Dashboard({
                     </div>
                 </div>
             )}
+
+            {/* MODAL GABUNG KELAS (BEAUTIFIED) */}
+            {isJoin && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    {/* Backdrop dengan blur */}
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsJoin(false)} />
+
+                    {/* Card Pop-up */}
+                    <div className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 sm:p-10 shadow-2xl border border-slate-100 dark:border-slate-700 animate-in zoom-in-95 duration-200 overflow-hidden">
+
+                        {/* Ornamen Latar (Glow) */}
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                        {/* Tombol X (Close) */}
+                        <button onClick={() => setIsJoin(false)} className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-600 transition-all z-10">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+
+                        {/* Ikon Header */}
+                        <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/30">
+                            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                        </div>
+
+                        <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Gabung Kelas.</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-8">
+                            Masukkan <strong className="text-indigo-500">6 digit kode </strong> yang diberikan oleh Dosen untuk masuk ke ruang proyek.
+                        </p>
+
+                        <form onSubmit={submitJoin} className="relative z-10">
+                            <div className="mb-6">
+                                <input
+                                    type="text"
+                                    value={joinForm.data.invite_code}
+                                    onChange={e => joinForm.setData('invite_code', e.target.value.toUpperCase())}
+                                    maxLength="6"
+                                    required
+                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-5 text-center text-4xl font-black text-slate-800 dark:text-white tracking-[0.4em] focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all uppercase shadow-inner"
+                                    placeholder="••••••"
+                                />
+                                {/* Tampilan Error yang lebih manis */}
+                                {joinForm.errors.invite_code && (
+                                    <div className="mt-3 flex items-center gap-2 text-rose-500 bg-rose-50 dark:bg-rose-500/10 px-4 py-2.5 rounded-xl border border-rose-100 dark:border-rose-500/20">
+                                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                        <p className="text-xs font-bold m-0">{joinForm.errors.invite_code}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <button
+                                type="submit"
+                                // Tombol tidak bisa diklik kalau kode kurang dari 6 huruf atau lagi loading
+                                disabled={joinForm.processing || joinForm.data.invite_code.length < 6}
+                                className="w-full bg-slate-900 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white rounded-2xl py-4 text-xs font-black tracking-widest uppercase shadow-xl shadow-slate-900/20 dark:shadow-indigo-500/30 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {joinForm.processing ? (
+                                    <>
+                                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Memverifikasi...
+                                    </>
+                                ) : 'Validasi Kode'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
         </AuthenticatedLayout>
     );
 }
