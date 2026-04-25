@@ -1,12 +1,17 @@
 import React from 'react';
 
-export default function GroupInitation({ groupForm, memberForm, daftarKelas, daftarKelompok, mahasiswaTanpaKelompok, submitGroup, submitMember }) {
-    
+// Tambahkan 'auth' di daftar parameter
+export default function GroupInitation({ auth, groupForm, memberForm, daftarKelas, daftarKelompok, mahasiswaTanpaKelompok, submitGroup, submitMember }) {
+
+    // Ambil nama depan Dosen yang sedang login
+    const firstName = auth?.user?.name ? auth.user.name.split(' ')[0] : 'Bapak/Ibu Dosen';
+
     // --- LOGIKA ASISTEN AI ---
     const applyAIPlan = () => {
         const selectedStudentId = memberForm.data.student_id;
         if (!selectedStudentId) {
-            alert("Pilih mahasiswanya dulu, Hil!");
+            // Gunakan nama dinamis di sini
+            alert(`Pilih mahasiswanya dulu, ${firstName}!`);
             return;
         }
 
@@ -22,7 +27,7 @@ export default function GroupInitation({ groupForm, memberForm, daftarKelas, daf
 
     return (
         <div className="w-full flex flex-col gap-10">
-            
+
             {/* --- 1. INISIASI TIM (BAGIAN ATAS) --- */}
             <div className="w-full transition-all group">
                 <div className="flex items-center gap-3 mb-6">
@@ -36,13 +41,13 @@ export default function GroupInitation({ groupForm, memberForm, daftarKelas, daf
                 <form onSubmit={submitGroup} className="space-y-4">
                     <div className="space-y-1">
                         <label className="text-[9px] font-black text-slate-400 ml-1 uppercase tracking-widest">Identitas Tim</label>
-                        <input 
-                            type="text" 
-                            placeholder="Contoh: Tim Aero-Shield" 
+                        <input
+                            type="text"
+                            placeholder="Contoh: Tim Aero-Shield"
                             className="w-full bg-slate-50 border-slate-200 rounded-2xl text-xs text-slate-700 focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all py-4 px-5 outline-none placeholder:text-slate-300"
-                            value={groupForm.data.nama_kelompok} 
-                            onChange={e => groupForm.setData('nama_kelompok', e.target.value)} 
-                            required 
+                            value={groupForm.data.nama_kelompok}
+                            onChange={e => groupForm.setData('nama_kelompok', e.target.value)}
+                            required
                         />
                     </div>
 
@@ -69,10 +74,10 @@ export default function GroupInitation({ groupForm, memberForm, daftarKelas, daf
                     {/* PILIH MAHASISWA */}
                     <div className="space-y-1">
                         <label className="text-[9px] font-black text-slate-400 ml-1 uppercase tracking-widest">Waiting List</label>
-                        <select 
+                        <select
                             className="w-full bg-slate-50 border-slate-200 rounded-2xl text-xs text-slate-700 focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all py-4 px-5 outline-none appearance-none"
-                            value={memberForm.data.student_id} 
-                            onChange={e => memberForm.setData('student_id', e.target.value)} 
+                            value={memberForm.data.student_id}
+                            onChange={e => memberForm.setData('student_id', e.target.value)}
                             required
                         >
                             <option value="">-- Pilih Mahasiswa --</option>
@@ -88,10 +93,10 @@ export default function GroupInitation({ groupForm, memberForm, daftarKelas, daf
                     <div className="space-y-1">
                         <label className="text-[9px] font-black text-slate-400 ml-1 uppercase tracking-widest">Target Tim Audit</label>
                         <div className="flex gap-2">
-                            <select 
+                            <select
                                 className="flex-1 bg-slate-50 border-slate-200 rounded-2xl text-xs text-slate-700 focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all py-4 px-5 outline-none appearance-none"
-                                value={memberForm.data.group_id} 
-                                onChange={e => memberForm.setData('group_id', e.target.value)} 
+                                value={memberForm.data.group_id}
+                                onChange={e => memberForm.setData('group_id', e.target.value)}
                                 required
                             >
                                 <option value="">-- Pilih Tim --</option>
@@ -99,8 +104,8 @@ export default function GroupInitation({ groupForm, memberForm, daftarKelas, daf
                                     <option key={g.id} value={g.id}>{g.nama_kelompok || g.nama}</option>
                                 ))}
                             </select>
-                            
-                            <button 
+
+                            <button
                                 type="button"
                                 onClick={applyAIPlan}
                                 className="px-5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl shadow-lg shadow-blue-600/20 transition-all active:scale-90"
