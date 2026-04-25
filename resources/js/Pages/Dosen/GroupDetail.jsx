@@ -1,8 +1,95 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
+import { useState } from 'react';
+
+// --- KOMPONEN BARIS TABEL (Untuk handling state per mahasiswa) ---
+function StudentAuditRow({ kelompok, student }) {
+    // State lokal untuk form input (Nilai Dasar dan Audit)
+    const [nilaiDasar, setNilaiDasar] = useState(student.nilai_dasar || 85); // 85 as fallback if DB is empty
+    const [nilaiAudit, setNilaiAudit] = useState(student.nilai_audit || 0);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Ambil rata-rata peer dari data DB (Dihitung di backend showKelompok)
+    // Gunakan 0 jika null/belum dinilai
+    const peerScore = student.avg_peer_score || 0;
+
+    // Kalkulasi Real-time
+    const bobotDasar = kelompok.bobot_dasar / 100;
+    const bobotAudit = kelompok.bobot_audit / 100;
+    const bobotPeer = kelompok.bobot_peer / 100;
+
+    const totalAkhir = (
+        (Number(nilaiDasar) * bobotDasar) +
+        (Number(nilaiAudit) * bobotAudit) +
+        (Number(peerScore) * bobotPeer)
+    ).toFixed(2);
+
+    // Fungsi Simpan ke Database
+    const handleSave = () => {
+        if (!nilaiAudit || nilaiAudit === '') return alert('Isi skor audit terlebih dahulu!');
+
+        setIsSaving(true);
+        router.post(route('dosen.audit.student', { groupId: kelompok.id, studentId: student.id }), {
+            nilai_dasar: nilaiDasar,
+            nilai_audit: nilaiAudit
+        }, {
+            preserveScroll: true,
+            onSuccess: () => alert('Nilai audit berhasil disimpan!'),
+            onFinish: () => setIsSaving(false)
+        });
+    };
+
+    return (
+        <tr className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+            <td className="p-4 font-bold text-slate-800 dark:text-white">{student.name}</td>
+
+            {/* Input Nilai Dasar */}
+            <td className="p-4 text-center">
+                <input
+                    type="number"
+                    min="0" max="100"
+                    value={nilaiDasar}
+                    onChange={(e) => setNilaiDasar(e.target.value)}
+                    className="w-16 text-center border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded-lg py-1 text-sm font-semibold text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+            </td>
+
+            {/* Input Nilai Audit & Tombol Simpan */}
+            <td className="p-4 text-center">
+                <div className="flex items-center justify-center gap-2">
+                    <input
+                        type="number"
+                        min="0" max="100"
+                        value={nilaiAudit}
+                        onChange={(e) => setNilaiAudit(e.target.value)}
+                        className="w-16 text-center border border-slate-300 dark:border-slate-700 dark:bg-slate-900 rounded-lg py-1 text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${isSaving ? 'bg-slate-300 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm active:scale-95'}`}
+                        title="Simpan Nilai"
+                    >
+                        {isSaving ? '...' : (
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                            </svg>
+                        )}
+                    </button>
+                </div>
+            </td>
+
+            {/* Menampilkan Skor Peer Asli */}
+            <td className="p-4 text-center font-medium text-slate-600 dark:text-slate-300">{peerScore}</td>
+
+            {/* Total Akhir Kalkulasi Real-time */}
+            <td className="p-4 text-center font-black text-blue-600 dark:text-blue-400 text-lg">{totalAkhir}</td>
+        </tr>
+    );
+}
 
 export default function GroupDetail({ auth, kelompok, anggota, tasks, logs }) {
-    // 1. Setup Form untuk fitur Colek (Nudge)
+    // Setup Form untuk fitur Colek (Nudge)
     const { post: postColek, processing } = useForm();
 
     const handleColek = (studentId) => {
@@ -16,23 +103,6 @@ export default function GroupDetail({ auth, kelompok, anggota, tasks, logs }) {
             });
         }
     };
-
-    const { data, setData, post: postAudit, processing: processingAudit } = useForm({
-    nilai_audit: '',
-});
-
-const handleSaveAudit = (studentId) => {
-    // Pastikan nilai sudah diisi
-    if (!data.nilai_audit) return alert('Input skor dulu, Hil!');
-
-    postAudit(route('dosen.audit.student', {
-        groupId: kelompok.id,
-        studentId: studentId
-    }), {
-        preserveScroll: true,
-        onSuccess: () => alert('Audit berhasil disimpan ke database!')
-    });
-};
 
     return (
         <AuthenticatedLayout
@@ -166,15 +236,15 @@ const handleSaveAudit = (studentId) => {
                                     Bobot: Dasar ({kelompok.bobot_dasar}%) | Audit ({kelompok.bobot_audit}%) | Peer ({kelompok.bobot_peer}%)
                                 </p>
                             </div>
-                           <a 
-    href={route('dosen.kelas.ekspor', kelompok.project_class_id)} 
-    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95"
->
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-    </svg>
-    Ekspor SIAKAD
-</a>
+                            <a
+                                href={route('dosen.kelas.ekspor', kelompok.project_class_id)}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                Ekspor SIAKAD
+                            </a>
                         </div>
                         <div className="p-0 overflow-x-auto">
                             <table className="w-full text-left text-sm">
@@ -187,54 +257,23 @@ const handleSaveAudit = (studentId) => {
                                         <th className="p-4 text-center font-black text-blue-600 dark:text-blue-400">Total Akhir</th>
                                     </tr>
                                 </thead>
-                        {/* Ganti isi <tbody> kamu dengan ini */}
-<tbody>
-    {anggota.map((user) => {
-        // Nilai dasar dan peer masih kita anggap statis dulu sesuai kodinganmu
-        const nDasar = 85;
-        const nPeer = 88;
-        
-        // Gunakan nilai dari database jika ada, kalau NULL pakai 0 sementara
-        const currentAudit = user.nilai_audit || 0; 
-        const total = ((nDasar * kelompok.bobot_dasar) / 100) + 
-                      ((currentAudit * kelompok.bobot_audit) / 100) + 
-                      ((nPeer * kelompok.bobot_peer) / 100);
-
-        return (
-            <tr key={user.id} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <td className="p-4 font-bold text-slate-800 dark:text-white">{user.name}</td>
-                <td className="p-4 text-center text-slate-600 dark:text-slate-300">{nDasar}</td>
-                
-                {/* AREA INPUT AUDIT */}
-                <td className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                        <input 
-                            type="number"
-                            placeholder={currentAudit}
-                            className="w-16 p-1 text-center text-xs font-bold border rounded-lg dark:bg-slate-900 dark:border-slate-700"
-                            onChange={(e) => setData('nilai_audit', e.target.value)}
-                        />
-                        <button 
-                            onClick={() => handleSaveAudit(user.id)}
-                            disabled={processingAudit}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white p-1.5 rounded-lg shadow-sm transition-all active:scale-90"
-                            title="Simpan Nilai"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                            </svg>
-                        </button>
-                    </div>
-                </td>
-
-                <td className="p-4 text-center text-slate-600 dark:text-slate-300">{nPeer}</td>
-                <td className="p-4 text-center font-black text-lg text-blue-600">
-                    {user.nilai_akhir ? Number(user.nilai_akhir).toFixed(2) : total.toFixed(2)}
-                </td>
-            </tr>
-        );
-    })}
-</tbody>
+                                <tbody>
+                                    {anggota && anggota.length > 0 ? (
+                                        anggota.map((student) => (
+                                            <StudentAuditRow
+                                                key={student.id}
+                                                kelompok={kelompok}
+                                                student={student}
+                                            />
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="5" className="p-12 text-center text-slate-400 text-sm font-medium">
+                                                Belum ada anggota di kelompok ini.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
                             </table>
                         </div>
                     </div>
