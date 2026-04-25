@@ -208,6 +208,67 @@ class DashboardController extends Controller
     }
 
     /**
+     * UPDATE NAMA PROYEK
+     */
+    public function updateGroupTitle(Request $request, $id)
+    {
+        $group = Group::find($id);
+        
+        if($group) {
+            $group->project_title = $request->project_title;
+            $group->save();
+        }
+
+        return back();
+    }
+
+    /**
+     * UPDATE TUGAS KANBAN (Edit Tugas)
+     */
+    public function updateTask(Request $request, $id)
+    {
+        $task = Task::findOrFail($id);
+
+        $isMember = GroupMember::where('student_id', Auth::id())
+            ->where('group_id', $task->group_id)
+            ->exists();
+
+        if (!$isMember) {
+            return back()->with('error', 'Akses ditolak!');
+        }
+
+        $existingFiles = $request->existing_files ?? [];
+        $filesToRemove = $request->remove_files ?? [];
+        
+        if (!empty($filesToRemove)) {
+            foreach ($filesToRemove as $oldFile) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($oldFile);
+            }
+        }
+
+        $newFiles = [];
+        if ($request->hasFile('attachment')) {
+            foreach ($request->file('attachment') as $file) {
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $path = $file->storeAs('tasks', $fileName, 'public');
+                $newFiles[] = $path;
+            }
+        }
+
+        $finalFiles = array_merge($existingFiles, $newFiles);
+        $finalPath = count($finalFiles) > 0 ? json_encode($finalFiles) : null;
+
+        $task->update([
+            'judul'     => $request->title,
+            'deskripsi' => $request->description ?? '',
+            'link'      => $request->link,
+            'file_path' => $finalPath,
+        ]);
+
+        return back()->with('success', 'Tugas berhasil diperbarui!');
+    }
+
+    /**
      * TAMBAH TUGAS BARU (Kanban)
      */
     public function storeTask(Request $request)
@@ -217,7 +278,7 @@ class DashboardController extends Controller
             'title'      => 'required|string|max:255',
             'status'     => 'required|in:backlog,in_progress,done',
             'link'       => 'nullable|url|max:500',
-            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar,doc,docx,xlsx,xls|max:5120',
+            // File validasi jika perlu bisa ditaruh di sini
         ]);
 
         $isMember = GroupMember::where('student_id', Auth::id())
@@ -228,20 +289,26 @@ class DashboardController extends Controller
             return back()->with('error', 'Akses ditolak!');
         }
 
-        $filePath = null;
+        // --- Logika Handle Upload Multiple Files (Opsional di sini) ---
+        $filePaths = [];
         if ($request->hasFile('attachment')) {
-            $file     = $request->file('attachment');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('tasks', $fileName, 'public');
+            foreach ($request->file('attachment') as $file) {
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $path = $file->storeAs('tasks', $fileName, 'public');
+                $filePaths[] = $path;
+            }
         }
+        $finalPath = count($filePaths) > 0 ? json_encode($filePaths) : null;
+        // -------------------------------------------------------------
 
         $task = Task::create([
             'group_id'  => $request->group_id,
             'pic_id'    => Auth::id(),
             'judul'     => $request->title,
+            'deskripsi' => $request->description ?? '',
             'status'    => $request->status,
             'link'      => $request->link,
-            'file_path' => $filePath,
+            'file_path' => $finalPath,
         ]);
 
         ActivityLog::create([
@@ -273,17 +340,10 @@ class DashboardController extends Controller
         $oldStatus = $task->status;
         $newStatus = $request->status;
 
-        $filePath = $task->file_path;
-        if ($request->hasFile('attachment')) {
-            $file     = $request->file('attachment');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('tasks', $fileName, 'public');
-        }
-
         $task->update([
             'status'    => $newStatus,
-            'judul'     => $request->title ?? $task->judul,
-            'file_path' => $filePath,
+            // Judul ikut terupdate jika lewat modal progress, jika hanya drag tidak berubah
+            'judul'     => $request->title ?? $task->judul, 
         ]);
 
         if ($newStatus !== $oldStatus) {
@@ -340,6 +400,14 @@ class DashboardController extends Controller
 
         if (!$isMember) {
             return back()->with('error', 'Akses ditolak!');
+        }
+
+        // Hapus file fisik jika ada sebelum menghapus record
+        if ($task->file_path) {
+            $files = json_decode($task->file_path, true) ?? [$task->file_path];
+            foreach ($files as $file) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($file);
+            }
         }
 
         $task->delete();
@@ -414,7 +482,6 @@ class DashboardController extends Controller
 
             $dosen = User::find($group->dosen_id);
             
-            // Cek spam notif
             if ($dosen) {
                 $sudahLapor = DB::table('notifications')
                     ->where('notifiable_id', $dosen->id)
