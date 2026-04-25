@@ -638,8 +638,7 @@ class DashboardController extends Controller
             ->join('project_classes', 'groups.project_class_id', '=', 'project_classes.id')
             ->where('groups.id', $id)
             ->where('project_classes.dosen_id', Auth::id())
-            ->select('groups.*', 'project_classes.mata_kuliah', 'project_classes.nama_kelas',
-                     'project_classes.bobot_dasar', 'project_classes.bobot_audit', 'project_classes.bobot_peer')
+            ->select('groups.*', 'project_classes.bobot_dasar', 'project_classes.bobot_audit', 'project_classes.bobot_peer', 'project_classes.nama_kelas')
             ->first();
 
         if (!$kelompok) abort(404);
@@ -647,49 +646,61 @@ class DashboardController extends Controller
         $anggota = DB::table('group_members')
             ->join('users', 'group_members.student_id', '=', 'users.id')
             ->where('group_members.group_id', $id)
-            ->where('users.role', 'mahasiswa')
             ->select('users.id', 'users.name', 'users.email', 'group_members.nilai_akhir', 'group_members.nilai_audit')
             ->get()
             ->map(function ($user) use ($id) {
-                // 1. Ambil log terakhir untuk waktu aktif
+                // 1. Ambil log terakhir
                 $lastLog = DB::table('activity_logs')
                     ->where('group_id', $id)
                     ->where('user_id', $user->id)
                     ->orderBy('created_at', 'desc')
                     ->first();
 
-                // 2. Hitung SKOR AUDIT AI SAAT INI (berdasarkan jumlah log)
-                $logCountCurrent = DB::table('activity_logs')
+                // 2. Hitung SKOR AUDIT AI (Berdasarkan jumlah log)
+                $logCount = DB::table('activity_logs')
                     ->where('group_id', $id)
                     ->where('user_id', $user->id)
                     ->count();
-                $user->ai_audit_score = min(100, $logCountCurrent * 5); // 1 aktivitas = 5 poin
+                $user->ai_audit_score = min(100, $logCount * 5); 
 
-                // 3. Set status keaktifan mahasiswa
-                $user->last_activity  = $lastLog
-                    ? Carbon::parse($lastLog->created_at)->diffForHumans()
-                    : 'Tidak ada aktivitas';
-                
-                $user->is_inactive    = $lastLog
-                    ? Carbon::parse($lastLog->created_at)->diffInDays(now()) >= 3
-                    : true;
+                // 3. Status keaktifan
+                $user->last_activity = $lastLog ? Carbon::parse($lastLog->created_at)->diffForHumans() : 'Tidak ada aktivitas';
+                $user->is_inactive   = $lastLog ? Carbon::parse($lastLog->created_at)->diffInDays(now()) >= 3 : true;
 
-                // 4. Hitung rata-rata Peer Review yang diterima user ini
+                // 4. Perbaikan Hitung Rata-rata Peer Review (BIANG KEROK ERROR DI SINI)
                 $peerScores = DB::table('peer_reviews')
                     ->where('group_id', $id)
-                    ->where('reviewee_id', $user->id) // PASTIKAN INI ADALAH reviewee_id (Yang Dinilai)
+                    ->where('reviewee_id', $user->id)
                     ->whereNotNull('score')
-                    ->pluck('score');
-                    
-                // Hitung manual agar lebih aman
-                $peerAvg = $peerScores->count() > 0 
-                           ? $peerScores->sum() / $peerScores->count() 
-                           : null;
+                    ->pluck('score'); // Mengambil kumpulan angka saja
 
-                $user->avg_peer_score = $peerAvg ? round($peerAvg, 1) : null;
+                $user->avg_peer_score = $peerScores->count() > 0 
+                    ? round($peerScores->avg(), 1) 
+                    : null;
 
                 return $user;
             });
+
+        $tasks = DB::table('tasks')
+            ->leftJoin('users', 'tasks.pic_id', '=', 'users.id')
+            ->where('tasks.group_id', $id)
+            ->select('tasks.*', 'users.name as pic_name')
+            ->orderBy('status', 'desc')
+            ->get();
+
+        $logs = DB::table('activity_logs')
+            ->join('users', 'activity_logs.user_id', '=', 'users.id')
+            ->where('activity_logs.group_id', $id)
+            ->select('activity_logs.*', 'users.name as user_name')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return Inertia::render('Dosen/GroupDetail', [
+            'kelompok' => $kelompok,
+            'anggota'  => $anggota,
+            'tasks'    => $tasks,
+            'logs'     => $logs,
+        ]);
 
         $tasks = DB::table('tasks')
             ->leftJoin('users', 'tasks.pic_id', '=', 'users.id')
