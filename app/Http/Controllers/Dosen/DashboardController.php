@@ -11,6 +11,8 @@ use Illuminate\Support\Str;
 use Carbon\Carbon;
 use App\Exports\NilaiSiakadExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Notifications\DosenAlertNotification;
+use App\Models\User;
 
 class DashboardController extends Controller
 {
@@ -80,6 +82,63 @@ class DashboardController extends Controller
             if ($isKritis) {
                 $kelompokKritis[] = ['id' => $group->id, 'nama' => $group->nama_kelompok, 'masalah' => $masalah];
             }
+        }
+
+        foreach ($groups as $group) {
+            $totalTasks = DB::table('tasks')->where('group_id', $group->id)->count();
+            $doneTasks  = DB::table('tasks')->where('group_id', $group->id)->where('status', 'done')->count();
+            $progress   = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100) : 0;
+
+            $latestLog = DB::table('activity_logs')
+                ->join('users', 'activity_logs.user_id', '=', 'users.id')
+                ->where('activity_logs.group_id', $group->id)
+                ->select('activity_logs.action_type', 'users.name as user_name', 'activity_logs.created_at')
+                ->orderBy('activity_logs.created_at', 'desc')
+                ->first();
+
+            $isKritis = false;
+            $masalah  = '';
+
+            if ($latestLog) {
+                $days = Carbon::parse($latestLog->created_at)->diffInDays(now());
+                if ($days >= 3) {
+                    $isKritis = true;
+                    $masalah  = "Pasif selama {$days} hari";
+                }
+            } else {
+                $isKritis = true;
+                $masalah  = 'Belum ada aktivitas sama sekali';
+            }
+
+            // ─── LOGIKA NOTIFIKASI AI KRITIS ──────────────────────────────
+            if ($isKritis) {
+                $kelompokKritis[] = ['id' => $group->id, 'nama' => $group->nama_kelompok, 'masalah' => $masalah];
+                
+                // Mencegah SPAM: Cek apakah notifikasi untuk kelompok ini sudah dikirim HARI INI
+                $pesanNotif = "⚠️ Peringatan AI: Kelompok '{$group->nama_kelompok}' {$masalah}. Diperlukan intervensi segera.";
+                
+                $sudahDikirim = DB::table('notifications')
+                    ->where('notifiable_id', $dosenId)
+                    ->where('data', 'like', '%' . $group->nama_kelompok . '%')
+                    ->whereDate('created_at', Carbon::today())
+                    ->exists();
+
+                if (!$sudahDikirim) {
+                    $dosenUser->notify(new DosenAlertNotification($pesanNotif, "warning"));
+                }
+            }
+            // ──────────────────────────────────────────────────────────────
+
+            $daftarKelompok[] = [
+                'id'          => $group->id,
+                'nama'        => $group->nama_kelompok . ' (' . $group->nama_kelas . ')',
+                'proyek'      => $group->project_title ?? 'Judul belum ditentukan',
+                'status'      => $isKritis ? 'Kritis' : 'Aman',
+                'progress'    => $progress . '%',
+                'log_terakhir'=> $latestLog
+                    ? $latestLog->user_name . ' melakukan ' . $latestLog->action_type
+                    : 'Belum ada aktivitas',
+            ];
         }
 
         // Mahasiswa approved yang belum masuk kelompok manapun
