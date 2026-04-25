@@ -61,6 +61,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Notifikasi / Colek
         Route::post('/colek/baca/{id}', [StudentDashboard::class, 'markNudgeRead'])->name('colek.read');
+
+        Route::post('/group/{id}/update-title', [StudentDashboard::class, 'updateGroupTitle'])->name('group.update-title');
+        Route::post('/task/{id}/update', [StudentDashboard::class, 'updateTask'])->name('task.update');
+
     });
 
     // --- GRUP RUTE DOSEN ---
