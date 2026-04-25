@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
-    // Tambahkan link_evidence dan completed_at di sini Hil!
+    // Tambahkan link_evidence dan completed_at di sini 
     protected $fillable = [
     'group_id', 
     'pic_id', 
