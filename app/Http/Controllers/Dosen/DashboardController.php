@@ -841,6 +841,8 @@ class DashboardController extends Controller
             DB::table('peer_reviews')->insert($peerReviewData);
 
             DB::commit();
+            
+            // Ini yang akan memunculkan Toast Alert "BERHASIL" di layar Dosen
             return back()->with('success', 'Sesi Peer Review berhasil dibuka! Mahasiswa sekarang bisa mulai menilai.');
 
         } catch (\Exception $e) {
@@ -848,7 +850,7 @@ class DashboardController extends Controller
             return back()->with('error', 'Gagal membuka sesi Peer Review: ' . $e->getMessage());
         }
     }
-
+    
     public function destroy($id)
     {
         $kelompok = Kelompok::findOrFail($id);
