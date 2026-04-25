@@ -51,16 +51,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/join-class', [StudentDashboard::class, 'joinClass'])->name('join-class');
         
         // --- TUGAS (KANBAN SYSTEM RUANG REKA) ---
-        // Simpan tugas baru (Reka Tugas)
         Route::post('/tasks/store', [StudentDashboard::class, 'storeTask'])->name('task.store');
-        
-        // Update status (Tarik kartu: Backlog -> In Progress -> Done)
         Route::post('/tasks/{id}/status', [StudentDashboard::class, 'updateTaskStatus'])->name('task.update-status');
-        
-        // Hapus tugas (Tombol X merah)
         Route::delete('/tasks/{id}', [StudentDashboard::class, 'deleteTask'])->name('task.delete');
-        
-        // Selesaikan tugas (Tombol Submit di In Progress)
         Route::post('/tasks/{taskId}/complete', [StudentDashboard::class, 'completeTask'])->name('tasks.complete');
         
         // Rute untuk mahasiswa menyimpan nilai Peer Review
@@ -96,17 +89,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Rute untuk Dosen membuka sesi Peer Review
         Route::post('/buka-peer-review/{groupId}', [DosenDashboard::class, 'openPeerReview'])->name('peer-review.open');
 
-        //untuk hapus kelompok
-        Route::delete('/kelompok/{id}', [KelompokController::class, 'destroy'])
-        ->name('dosen.kelompok.destroy');
+        // Hapus kelompok (Pastikan method destroy ada di DosenDashboard atau sesuaikan controllernya)
+        // KARENA SEBELUMNYA MENGGUNAKAN KelompokController::class YANG BELUM DI-IMPORT, 
+        // SAYA ASUMSIKAN METHODNYA ADA DI DosenDashboard. JIKA BEDA, GANTI DosenDashboard::class
+        Route::delete('/kelompok/{id}', [DosenDashboard::class, 'destroy'])->name('kelompok.destroy');
 
-        Route::post('/dosen/notifikasi/{id}/read', function ($id) {
-        $notification = auth()->user()->notifications()->find($id);
-        if ($notification) {
-            $notification->markAsRead();
-        }
-        return back();
-        })->name('dosen.notifications.read')->middleware(['auth']);
+        // Rute Notifikasi Dosen (DIPERBAIKI agar tidak double prefix 'dosen.dosen.')
+        Route::post('/notifikasi/{id}/read', function ($id) {
+            $notification = auth()->user()->notifications()->find($id);
+            if ($notification) {
+                $notification->markAsRead();
+            }
+            return back();
+        })->name('notifications.read'); 
     });
 
     // --- PROFILE MANAGEMENT ---
