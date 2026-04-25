@@ -369,17 +369,6 @@ export default function Dashboard({
                                         </Link>
                                     </div>
                                 ))}
-
-                                <div onClick={() => setIsJoin(true)}
-                                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-3xl h-48 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-300 group">
-                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-500 transition-all duration-300">
-                                        <svg className="w-6 h-6 text-indigo-500 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-sm font-extrabold text-indigo-500 dark:text-indigo-400 m-0">Gabung Kelas Baru</p>
-                                        <p className="text-[11px] text-slate-400 font-medium m-0 mt-1">Masukkan kode dari dosen</p>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
