@@ -6,7 +6,7 @@ import { useState } from 'react';
 function StudentAuditRow({ kelompok, student }) {
     // State lokal untuk form input (Nilai Dasar dan Audit)
     const [nilaiDasar, setNilaiDasar] = useState(student.nilai_dasar || 85); // 85 as fallback if DB is empty
-    const [nilaiAudit, setNilaiAudit] = useState(student.nilai_audit || 0);
+    const [nilaiAudit, setNilaiAudit] = useState(student.nilai_audit ?? student.ai_audit_score ?? 0);
     const [isSaving, setIsSaving] = useState(false);
 
     // Ambil rata-rata peer dari data DB (Dihitung di backend showKelompok)
