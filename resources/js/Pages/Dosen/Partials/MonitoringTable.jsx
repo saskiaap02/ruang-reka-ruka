@@ -1,158 +1,70 @@
-import { Link, usePage, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import React from 'react';
+import { Link, router } from '@inertiajs/react';
 
 export default function MonitoringTable({ daftarKelompok }) {
-    const { flash } = usePage().props;
-
-    const [toast, setToast] = useState(null);
-
-    // 🔥 Toast handler dari flash
-    useEffect(() => {
-        if (flash?.success) {
-            setToast({ type: 'success', message: flash.success });
-        } else if (flash?.error) {
-            setToast({ type: 'error', message: flash.error });
-        } else if (flash?.info) {
-            setToast({ type: 'info', message: flash.info });
-        }
-
-        if (flash?.success || flash?.error || flash?.info) {
-            setTimeout(() => setToast(null), 4000);
-        }
-    }, [flash]);
-
-    // 🔥 HANDLE DELETE
     const handleDelete = (id, nama) => {
-        if (!confirm(`Hapus kelompok "${nama}"?`)) return;
-
-        router.delete(route('dosen.kelompok.destroy', id), {
-            preserveScroll: true,
-        });
+        if (!confirm(`Hapus kelompok "${nama}" beserta semua anggotanya?`)) return;
+        router.delete(route('dosen.kelompok.destroy', id), { preserveScroll: true });
     };
 
     return (
-        <div className="bg-slate-900/40 backdrop-blur-xl overflow-hidden rounded-[2.5rem] border border-slate-800 shadow-2xl relative">
+        <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-700 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
+                        <th className="p-5 whitespace-nowrap">Identitas Tim</th>
+                        <th className="p-5 whitespace-nowrap text-center">Status AI</th>
+                        <th className="p-5 whitespace-nowrap text-center">Progress Kanban</th>
+                        <th className="p-5 whitespace-nowrap text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
+                    {daftarKelompok?.length > 0 ? (
+                        daftarKelompok.map((kelompok) => (
+                            <tr key={kelompok.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                <td className="p-5">
+                                    <p className="font-black text-slate-800 dark:text-white text-sm">{kelompok.nama}</p>
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight truncate max-w-[180px] mt-1">
+                                        {kelompok.proyek || 'Belum ada judul'}
+                                    </p>
+                                </td>
 
-            {/* 🔥 TOAST */}
-            {toast && (
-                <div className={`absolute top-5 right-8 z-50 px-6 py-4 rounded-xl shadow-2xl text-xs font-black uppercase tracking-widest transition-all animate-bounce
-                    ${toast.type === 'success' ? 'bg-emerald-500 text-white' :
-                        toast.type === 'error' ? 'bg-red-500 text-white' :
-                            'bg-blue-500 text-white'
-                    }`}>
-                    {toast.type === 'success' ? '✅ ' : toast.type === 'error' ? '❌ ' : 'ℹ️ '}
-                    {toast.message}
-                </div>
-            )}
+                                <td className="p-5 text-center">
+                                    <span className={`inline-block px-3 py-1.5 text-[9px] font-black rounded-lg uppercase tracking-widest border ${kelompok.status === 'Aman' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 animate-pulse'}`}>
+                                        {kelompok.status}
+                                    </span>
+                                </td>
 
-            <div className="p-8 border-b border-slate-800 bg-slate-900/20 flex justify-between items-center">
-                <div>
-                    <h3 className="text-xl font-black text-white tracking-tight">Monitoring & Audit Log Kelompok</h3>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold italic">Real-time Intelligence System</p>
-                </div>
-                <span className="bg-emerald-500/10 text-[10px] font-black px-4 py-2 rounded-xl border border-emerald-500/20 text-emerald-400 flex items-center gap-2 shadow-sm uppercase tracking-tighter">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Audit System Active
-                </span>
-            </div>
-
-            <div className="p-0 overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-800/30 border-b border-slate-800 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                            <th className="p-6">Identitas Tim</th>
-                            <th className="p-6">Status AI</th>
-                            <th className="p-6 text-center">Progress</th>
-                            <th className="p-6">Update Terakhir</th>
-                            <th className="p-6 text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                        {daftarKelompok?.length > 0 ? (
-                            daftarKelompok.map((kelompok) => (
-                                <tr key={kelompok.id} className="hover:bg-blue-600/5 transition-all duration-300 group">
-                                    <td className="p-6">
-                                        <p className="font-black text-white text-sm group-hover:text-blue-400 transition-colors">{kelompok.nama}</p>
-                                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight truncate max-w-[250px] mt-1">
-                                            {kelompok.proyek || 'Belum ada judul proyek'}
-                                        </p>
-                                    </td>
-
-                                    <td className="p-6">
-                                        <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg uppercase tracking-widest border ${kelompok.status === 'Aman'
-                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                            : 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse'
-                                            }`}>
-                                            {kelompok.status}
-                                        </span>
-                                    </td>
-
-                                    <td className="p-6">
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-[10px] font-black text-slate-400 mb-2 tracking-tighter">
-                                                {kelompok.progress}%
-                                            </span>
-                                            <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                                                <div
-                                                    className={`h-full transition-all duration-1000 ${parseInt(kelompok.progress) > 70
-                                                        ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
-                                                        : parseInt(kelompok.progress) > 30
-                                                            ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]'
-                                                            : 'bg-orange-600 shadow-[0_0_10px_rgba(234,88,12,0.5)]'
-                                                        }`}
-                                                    style={{ width: `${kelompok.progress}%` }}
-                                                ></div>
-                                            </div>
+                                <td className="p-5">
+                                    <div className="flex flex-col items-center max-w-[100px] mx-auto">
+                                        <span className="text-[10px] font-black text-slate-500 mb-1">{kelompok.progress}</span>
+                                        <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                            <div className={`h-full transition-all duration-1000 ${parseInt(kelompok.progress) > 70 ? 'bg-emerald-500' : parseInt(kelompok.progress) > 30 ? 'bg-indigo-500' : 'bg-amber-500'}`} style={{ width: kelompok.progress }}></div>
                                         </div>
-                                    </td>
+                                    </div>
+                                </td>
 
-                                    <td className="p-6 text-[11px] italic text-slate-500 font-medium">
-                                        <span className="text-slate-700">“</span>{kelompok.log_terakhir || 'Belum ada aktivitas'}<span className="text-slate-700">”</span>
-                                    </td>
-
-                                    <td className="p-6 text-center">
-                                        <div className="flex justify-center items-center gap-2">
-
-                                            {/* DETAIL */}
-                                            <Link
-                                                href={route('dosen.kelompok.show', { id: kelompok.id })}
-                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-400 border border-blue-500/30 px-4 py-2.5 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-lg shadow-blue-900/20 active:scale-95"
-                                            >
-                                                Detail Audit
-                                            </Link>
-
-                                            {/* PEER REVIEW dengan preserveScroll */}
-                                            <Link
-                                                href={route('dosen.peer-review.open', kelompok.id)}
-                                                method="post"
-                                                as="button"
-                                                preserveScroll={true}
-                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-purple-400 border border-purple-500/30 px-4 py-2.5 rounded-2xl hover:bg-purple-600 hover:text-white transition-all shadow-lg shadow-purple-900/20 active:scale-95"
-                                            >
-                                                Buka Peer Review
-                                            </Link>
-
-                                            {/* 🔥 DELETE */}
-                                            <button
-                                                onClick={() => handleDelete(kelompok.id, kelompok.nama)}
-                                                className="text-[10px] font-black uppercase tracking-[0.15em] text-red-400 border border-red-500/30 px-4 py-2.5 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-900/20 active:scale-95"
-                                            >
-                                                Hapus
-                                            </button>
-
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="5" className="p-20 text-center text-slate-600 text-xs font-bold italic tracking-widest">
-                                    [ SISTEM KOSONG: BELUM ADA KELOMPOK TERDETEKSI ]
+                                <td className="p-5 text-center">
+                                    {/* DI SINI TOMBOL BUKA PEER NYA KEMBALI */}
+                                    <div className="flex flex-wrap items-center justify-center gap-2 w-max mx-auto">
+                                        <Link href={route('dosen.kelompok.show', kelompok.id)} className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 rounded-lg transition-all text-center">
+                                            Audit
+                                        </Link>
+                                        <Link method="post" as="button" preserveScroll href={route('dosen.peer-review.open', kelompok.id)} className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 hover:bg-purple-100 dark:text-purple-400 dark:bg-purple-500/10 dark:hover:bg-purple-500/20 rounded-lg transition-all text-center whitespace-nowrap">
+                                            Buka Peer
+                                        </Link>
+                                        <button onClick={() => handleDelete(kelompok.id, kelompok.nama)} className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 dark:text-rose-400 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 rounded-lg transition-all">
+                                            Hapus
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                        ))
+                    ) : (
+                        <tr><td colSpan="4" className="p-16 text-center text-slate-500 text-xs font-bold italic tracking-widest">Belum ada tim di kelas ini.</td></tr>
+                    )}
+                </tbody>
+            </table>
         </div>
     );
 }
