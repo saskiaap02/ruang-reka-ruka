@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActivityLogs from './Components/ActivityLogs';
 import KanbanBoard from './Components/KanbanBoard';
 
-/* ─── Design Tokens (Tailwind Classes) ────────────────────────────────────── */
+/* ─── Design Tokens ──────────────────────────────────────────────────────── */
 const AVATAR_COLORS = [
     'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400',
     'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
@@ -24,10 +24,8 @@ const CARD_GRADS = [
 /* ─── Micro-components ────────────────────────────────────────────────────── */
 function Av({ name = '?', size = 36, idx = 0 }) {
     return (
-        <div
-            className={`flex items-center justify-center font-extrabold shrink-0 rounded-full ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}
-            style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
-        >
+        <div className={`flex items-center justify-center font-extrabold shrink-0 rounded-full ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}
+            style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}>
             {name.charAt(0).toUpperCase()}
         </div>
     );
@@ -50,7 +48,7 @@ function ProgressRing({ pct = 0, size = 88 }) {
     const circ = 2 * Math.PI * r;
     return (
         <svg width={size} height={size} className="-rotate-90">
-            <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-slate-100 dark:stroke-slate-700" strokeWidth={8} />
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-slate-200 dark:stroke-slate-700" strokeWidth={8} />
             <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-indigo-500" strokeWidth={8}
                 strokeDasharray={`${(pct / 100) * circ} ${circ}`} strokeLinecap="round"
                 style={{ transition: 'stroke-dasharray .8s cubic-bezier(0.4, 0, 0.2, 1)' }} />
@@ -76,9 +74,9 @@ function PeerCard({ review, onRate, myId }) {
                 </div>
                 {hasScore ? (
                     <div className={`rounded-xl px-3 py-1 flex flex-col items-center justify-center border 
-                        ${review.score >= 75 ? 'bg-emerald-50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20' :
-                            review.score >= 50 ? 'bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20' :
-                                'bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20'}`}
+                        ${review.score >= 75 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20' :
+                            review.score >= 50 ? 'bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20' :
+                                'bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20'}`}
                     >
                         <span className={`text-lg font-black leading-none
                             ${review.score >= 75 ? 'text-emerald-600 dark:text-emerald-400' :
@@ -90,14 +88,14 @@ function PeerCard({ review, onRate, myId }) {
                         <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 leading-none mt-1">/100</span>
                     </div>
                 ) : (
-                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">
                         Pending
                     </span>
                 )}
             </div>
 
             {!hasScore && (
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-widest text-center">Beri Nilai</p>
                     <div className="flex gap-1.5">
                         {[20, 40, 60, 80, 100].map(s => (
@@ -113,15 +111,6 @@ function PeerCard({ review, onRate, myId }) {
                             </button>
                         ))}
                     </div>
-                </div>
-            )}
-
-            {review.feedback && (
-                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/60">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 italic m-0 relative">
-                        <span className="text-slate-200 dark:text-slate-700 text-2xl absolute -top-2 -left-1">"</span>
-                        <span className="pl-3 relative z-10">{review.feedback}</span>
-                    </p>
                 </div>
             )}
         </div>
@@ -140,36 +129,60 @@ export default function Dashboard({
     const [isAct, setIsAct] = useState(false);
     const [actId, setActId] = useState(null);
 
+    // State Modal Ganti Nama Proyek
+    const [isEditTitle, setIsEditTitle] = useState(false);
+
+    const projectForm = useForm({
+        project_title: myGroup?.project_title || ''
+    });
+
     const currentRel = joinedClasses?.find(i => i.project_class_id === myClass?.id);
     const isPending = currentRel?.status === 'pending';
 
     const joinForm = useForm({ invite_code: '' });
 
-    // Ditambahkan description, existing_file, dan remove_existing
     const taskForm = useForm({
         id: null,
         group_id: myGroup?.id,
         title: '',
-        description: '', // Tambahan untuk deskripsi
+        description: '',
         status: 'backlog',
         attachment: null,
         link: '',
-        existing_file: null,    // Menyimpan path file lama
-        remove_existing: false  // Flag penanda jika file lama dihapus
+        attachment: [],
+        existing_files: [],
+        remove_files: []
     });
 
     /* ── Handlers ────────────────────────────────────────────────────────── */
-    const submitJoin = e => {
+
+    // FUNGSI UNTUK MEMBUKA MODAL PROJECT TITLE
+    const openEditTitleModal = () => {
+        projectForm.setData('project_title', myGroup?.project_title || '');
+        projectForm.clearErrors();
+        setIsEditTitle(true);
+    };
+
+    // FUNGSI SUBMIT DENGAN DETEKTIF ERROR
+    // FUNGSI GANTI NAMA PROYEK
+    const submitProjectTitle = (e) => {
         e.preventDefault();
-        joinForm.post(route('mahasiswa.join-class'), {
-            onSuccess: () => { setIsJoin(false); joinForm.reset(); },
+
+        // Kita pakai post biasa karena di web.php sekarang rutenya Route::post
+        projectForm.post(route('mahasiswa.group.update-title', myGroup?.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsEditTitle(false);
+            }
         });
     };
 
+    // FUNGSI SUBMIT TUGAS (Edit dan Bikin Baru)
     const submitTask = e => {
         e.preventDefault();
         if (taskForm.data.id) {
-            taskForm.post(route('mahasiswa.task.store', taskForm.data.id), {
+            // Kita pakai post biasa karena di web.php rutenya Route::post untuk update task
+            taskForm.post(route('mahasiswa.task.update', taskForm.data.id), {
                 forceFormData: true,
                 onSuccess: () => { setIsTask(false); taskForm.reset(); },
             });
@@ -181,6 +194,13 @@ export default function Dashboard({
         }
     };
 
+    const submitJoin = e => {
+        e.preventDefault();
+        joinForm.post(route('mahasiswa.join-class'), {
+            onSuccess: () => { setIsJoin(false); joinForm.reset(); },
+        });
+    };
+
     const confirmDelete = id => {
         if (confirm('Hapus tugas ini?')) taskForm.delete(route('mahasiswa.task.delete', id));
     };
@@ -189,23 +209,29 @@ export default function Dashboard({
         taskForm.clearErrors();
         taskForm.setData({
             id: null, group_id: myGroup?.id, title: '', description: '',
-            status, attachment: null, link: '', existing_file: null, remove_existing: false
+            status, attachment: [], link: '', existing_files: [], remove_files: []
         });
         setIsTask(true);
     };
 
     const handleEditTask = (task) => {
         taskForm.clearErrors();
+
+        let files = [];
+        if (task.file_path) {
+            try { files = JSON.parse(task.file_path); } catch (e) { files = [task.file_path]; }
+        }
+
         taskForm.setData({
             id: task.id,
             group_id: task.group_id,
             title: task.title || task.judul || '',
-            description: task.description || task.deskripsi || '', // Sesuaikan nama properti dgn database-mu
+            description: task.description || task.deskripsi || '',
             status: task.status,
             link: task.link || '',
-            attachment: null,
-            existing_file: task.file_path || null,
-            remove_existing: false
+            attachment: [],
+            existing_files: Array.isArray(files) ? files : [files],
+            remove_files: []
         });
         setIsTask(true);
     };
@@ -233,6 +259,22 @@ export default function Dashboard({
 
     const handlePeerRate = (rid, score) => {
         router.post(route('mahasiswa.peer.rate', rid), { score }, { preserveScroll: true });
+    };
+
+    const handleFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        taskForm.setData('attachment', [...taskForm.data.attachment, ...files]);
+    };
+
+    const removeExistingFile = (file) => {
+        taskForm.setData('existing_files', taskForm.data.existing_files.filter(f => f !== file));
+        taskForm.setData('remove_files', [...taskForm.data.remove_files, file]);
+    };
+
+    const removeNewFile = (index) => {
+        const updated = [...taskForm.data.attachment];
+        updated.splice(index, 1);
+        taskForm.setData('attachment', updated);
     };
 
     /* ── Computed ─────────────────────────────────────────────────────────── */
@@ -327,6 +369,17 @@ export default function Dashboard({
                                         </Link>
                                     </div>
                                 ))}
+
+                                <div onClick={() => setIsJoin(true)}
+                                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-3xl h-48 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-300 group">
+                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-500 transition-all duration-300">
+                                        <svg className="w-6 h-6 text-indigo-500 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-sm font-extrabold text-indigo-500 dark:text-indigo-400 m-0">Gabung Kelas Baru</p>
+                                        <p className="text-[11px] text-slate-400 font-medium m-0 mt-1">Masukkan kode dari dosen</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -360,12 +413,12 @@ export default function Dashboard({
                                         <Link href={route('mahasiswa.dashboard')} className="flex items-center justify-center w-8 h-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-indigo-500 transition-colors shadow-sm">
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                                         </Link>
-                                        <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">{myClass.nama_kelas}</span>
+                                        <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-3 py-1 rounded-lg">{myClass.nama_kelas}</span>
                                     </div>
                                     <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Halo, {auth.user.name.split(' ')[0]}! 👋</h1>
                                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium m-0">
                                         {myGroup
-                                            ? <>Tergabung di <strong className="text-indigo-500 dark:text-indigo-400">Tim {myGroup.nama_kelompok}</strong> · {myGroup.project_title || 'Proyek Kelompok'}</>
+                                            ? <>Tergabung di <strong className="text-indigo-500 dark:text-indigo-400">Tim {myGroup.nama_kelompok}</strong></>
                                             : 'AI sedang memetakan tim kamu...'}
                                     </p>
                                 </div>
@@ -422,7 +475,19 @@ export default function Dashboard({
                                             </div>
                                             <div className="flex-1 flex flex-col justify-center text-center sm:text-left">
                                                 <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">Progress Proyek Tim</p>
-                                                <p className="text-xl font-black text-slate-800 dark:text-white mb-4">{myGroup.project_title || 'Proyek Belum Berjudul'}</p>
+
+                                                <div className="flex items-center justify-center sm:justify-start gap-3 mb-4 group/title relative">
+                                                    <p className="text-xl font-black text-slate-800 dark:text-white m-0">
+                                                        {myGroup.project_title || 'Proyek Belum Berjudul'}
+                                                    </p>
+                                                    <button
+                                                        onClick={openEditTitleModal}
+                                                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-indigo-500 opacity-0 group-hover/title:opacity-100 transition-all"
+                                                        title="Ganti Nama Proyek"
+                                                    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                    </button>
+                                                </div>
 
                                                 <div className="w-full bg-slate-100 dark:bg-slate-700/50 rounded-full h-2.5 mb-2 overflow-hidden border border-slate-200 dark:border-slate-700">
                                                     <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full relative" style={{ width: `${pct}%`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }}>
@@ -571,44 +636,42 @@ export default function Dashboard({
                                 </div>
 
                             ) : tab === 'logs' ? (
-                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl shadow-sm overflow-hidden">
+                                <div className="animate-in fade-in duration-300">
                                     <ActivityLogs logs={logs} />
                                 </div>
 
                             ) : tab === 'peer' ? (
-                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm mb-6">
-                                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8 pb-6 border-b border-slate-100 dark:border-slate-700/60">
-                                            <div>
-                                                <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">Penilaian Teman Sejawat (Peer)</h3>
-                                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 m-0 max-w-lg">
-                                                    Evaluasi performa rekan satu tim secara jujur dan objektif. Penilaian kamu bersifat rahasia (anonim) dan akan berkontribusi pada nilai akhir mereka.
-                                                </p>
-                                            </div>
-                                            {pendingPeer > 0 && (
-                                                <span className="inline-flex items-center gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold px-4 py-2 rounded-xl uppercase tracking-wider shrink-0">
-                                                    <svg className="w-4 h-4 animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                    {pendingPeer} Belum Dinilai
-                                                </span>
-                                            )}
+                                <div className="animate-in fade-in duration-300">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">Penilaian Teman Sejawat (Peer)</h3>
+                                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 m-0 max-w-lg">
+                                                Evaluasi performa rekan satu tim secara jujur dan objektif. Penilaian kamu bersifat rahasia (anonim) dan akan berkontribusi pada nilai akhir mereka.
+                                            </p>
                                         </div>
-
-                                        {peerReviews?.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                                                {peerReviews.map(r => (
-                                                    <PeerCard key={r.id} review={r} onRate={handlePeerRate} myId={auth.user.id} />
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-20 px-4">
-                                                <div className="text-6xl mb-4">📊</div>
-                                                <h4 className="text-lg font-black text-slate-800 dark:text-white mb-2">Sesi Penilaian Belum Dibuka</h4>
-                                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 m-0">
-                                                    Dosen belum mengaktifkan sesi peer review untuk kelas ini. Cek lagi nanti!
-                                                </p>
-                                            </div>
+                                        {pendingPeer > 0 && (
+                                            <span className="inline-flex items-center gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold px-4 py-2 rounded-xl uppercase tracking-wider shrink-0 shadow-sm">
+                                                <svg className="w-4 h-4 animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                {pendingPeer} Belum Dinilai
+                                            </span>
                                         )}
                                     </div>
+
+                                    {peerReviews?.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                            {peerReviews.map(r => (
+                                                <PeerCard key={r.id} review={r} onRate={handlePeerRate} myId={auth.user.id} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-20 px-4">
+                                            <div className="text-6xl mb-4">📊</div>
+                                            <h4 className="text-lg font-black text-slate-800 dark:text-white mb-2">Sesi Penilaian Belum Dibuka</h4>
+                                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 m-0">
+                                                Dosen belum mengaktifkan sesi peer review untuk kelas ini. Cek lagi nanti!
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : null}
                         </div>
@@ -616,154 +679,113 @@ export default function Dashboard({
                 </div>
             </div>
 
-            {/* ═══════════════════════════════════════════════════════
-                MODALS (TAILWIND REWRITE)
-            ═══════════════════════════════════════════════════════ */}
-            {[
-                {
-                    show: isJoin, close: () => setIsJoin(false), maxW: "sm:max-w-sm",
-                    body: (
-                        <>
-                            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center mb-6">
-                                <svg className="w-7 h-7 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+            {/* MODALS TUGAS */}
+            {isTask && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsTask(false)} />
+                    <div className={`relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-[2rem] p-8 shadow-2xl border border-slate-100 dark:border-slate-700 animate-in zoom-in-95 duration-200`}>
+                        <button onClick={() => setIsTask(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-800 dark:hover:text-white"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+
+                        <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">{taskForm.data.id ? 'Edit Tugas' : 'Tugas Baru'}</h3>
+                        <p className="text-sm text-slate-500 mb-6">Lengkapi rincian tugas kelompok kamu.</p>
+
+                        <form onSubmit={submitTask} className="flex flex-col gap-5">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Judul Tugas</label>
+                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Input judul..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} required />
                             </div>
-                            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Gabung Kelas</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6">Masukkan kode rahasia 6 karakter yang diberikan oleh Dosen.</p>
-                            <form onSubmit={submitJoin}>
-                                <input type="text" value={joinForm.data.invite_code}
-                                    onChange={e => joinForm.setData('invite_code', e.target.value.toUpperCase())}
-                                    maxLength="6" required
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-4 text-center text-3xl font-black text-slate-800 dark:text-white tracking-[0.4em] focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all mb-3 uppercase"
-                                    placeholder="AABBCC" />
-                                {joinForm.errors.invite_code && <p className="text-rose-500 text-xs font-bold mb-4 bg-rose-50 dark:bg-rose-500/10 p-2 rounded-lg">{joinForm.errors.invite_code}</p>}
-                                <button type="submit" disabled={joinForm.processing} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3.5 text-sm font-black tracking-widest uppercase shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-50">
-                                    {joinForm.processing ? 'Memproses Kode...' : 'Konfirmasi Gabung'}
-                                </button>
-                            </form>
-                        </>
-                    ),
-                },
-                {
-                    show: isTask, close: () => setIsTask(false), maxW: "sm:max-w-md",
-                    body: (
-                        <>
-                            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">
-                                {taskForm.data.id ? 'Edit Tugas' : 'Inisiasi Tugas Baru'}
-                            </h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-4">
-                                {taskForm.data.id ? 'Perbarui informasi tugas di papan kanban.' : 'Tambahkan pekerjaan ke dalam papan kanban divisi kamu.'}
-                            </p>
-                            <form onSubmit={submitTask} className="flex flex-col gap-4">
-                                {/* Judul */}
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Judul Tugas Utama</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="Misal: Slicing UI Dashboard..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus />
-                                </div>
 
-                                {/* Deskripsi */}
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Detail Deskripsi</label>
-                                    <textarea className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all min-h-[80px] resize-none" placeholder="Tuliskan rincian tugas secara lengkap di sini..." value={taskForm.data.description} onChange={e => taskForm.setData('description', e.target.value)} />
-                                </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Deskripsi Detail</label>
+                                <textarea className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[100px] resize-none" placeholder="Tulis rincian tugas..." value={taskForm.data.description} onChange={e => taskForm.setData('description', e.target.value)} />
+                            </div>
 
-                                {/* Link */}
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Tautan Referensi (Opsional)</label>
-                                    <input type="url" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="https://figma.com/..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} />
-                                </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tautan Pendukung (Opsional)</label>
+                                <input type="url" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="https://..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} />
+                            </div>
 
-                                {/* Lampiran File dengan Logika Edit */}
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Dokumen Lampiran (Opsional)</label>
-
-                                    {/* Jika mode Edit dan file lama ADA, tapi user BELUM klik Hapus */}
-                                    {taskForm.data.existing_file && !taskForm.data.remove_existing ? (
-                                        <div className="flex items-center justify-between p-4 border border-emerald-200 dark:border-emerald-500/30 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 transition-all">
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                                    File Tersimpan
-                                                </span>
-                                                <a href={`/storage/${taskForm.data.existing_file}`} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
-                                                    Lihat Dokumen ↗
-                                                </a>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => taskForm.setData('remove_existing', true)}
-                                                className="bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-500/30 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
-                                            >
-                                                Hapus
-                                            </button>
-                                        </div>
-                                    ) : taskForm.data.attachment ? (
-                                        /* Jika user SUDAH memilih file baru */
-                                        <div className="flex items-center justify-between p-4 border border-indigo-200 dark:border-indigo-500/30 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 transition-all">
-                                            <span className="text-sm font-bold text-indigo-700 dark:text-indigo-400 truncate pr-4">{taskForm.data.attachment.name}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => taskForm.setData('attachment', null)}
-                                                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-rose-500 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm shrink-0"
-                                            >
-                                                Batal
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        /* Kotak Dropzone Default (Kosong) */
-                                        <div className="relative w-full bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl px-4 py-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors cursor-pointer group">
-                                            <input type="file" onChange={e => taskForm.setData('attachment', e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                                            <div className="flex flex-col items-center gap-2">
-                                                <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/20 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:border-indigo-200 dark:group-hover:border-indigo-500/30 text-slate-400 transition-colors">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Manajer Lampiran</label>
+                                {taskForm.data.existing_files.length > 0 && (
+                                    <div className="space-y-2 mb-3">
+                                        {taskForm.data.existing_files.map((file, i) => (
+                                            !taskForm.data.remove_files.includes(file) && (
+                                                <div key={i} className="flex justify-between items-center p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-xl">
+                                                    <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 truncate pr-4">✓ File Tersimpan {i + 1}</span>
+                                                    <div className="flex gap-3 shrink-0">
+                                                        <a href={`/storage/${file}`} target="_blank" rel="noreferrer" className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase hover:underline">Buka ↗</a>
+                                                        <button type="button" onClick={() => removeExistingFile(file)} className="text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase hover:underline">Hapus</button>
+                                                    </div>
                                                 </div>
-                                                <p className="text-sm font-bold m-0 text-slate-500 dark:text-slate-400">
-                                                    Klik atau seret file ke sini
-                                                </p>
+                                            )
+                                        ))}
+                                    </div>
+                                )}
+                                {taskForm.data.attachment.length > 0 && (
+                                    <div className="space-y-2 mb-3">
+                                        {taskForm.data.attachment.map((file, i) => (
+                                            <div key={i} className="flex justify-between items-center p-3 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl">
+                                                <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 truncate pr-4">📎 {file.name}</span>
+                                                <button type="button" onClick={() => removeNewFile(i)} className="text-[10px] font-black text-rose-500 dark:text-rose-400 uppercase shrink-0 hover:underline">Batal</button>
                                             </div>
-                                        </div>
-                                    )}
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="relative w-full bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4 text-center hover:border-indigo-400 transition-colors cursor-pointer group">
+                                    <input type="file" multiple onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                    <div className="flex items-center justify-center gap-2 text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                        <p className="text-xs font-bold m-0">Tambah Lampiran Baru</p>
+                                    </div>
                                 </div>
-                                <button type="submit" disabled={taskForm.processing} className="w-full mt-2 bg-slate-800 dark:bg-slate-100 hover:bg-slate-900 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl py-3.5 text-sm font-black tracking-widest uppercase shadow-md transition-all disabled:opacity-50">
-                                    {taskForm.processing ? 'Menyimpan...' : 'Simpan Tugas'}
-                                </button>
-                            </form>
-                        </>
-                    ),
-                },
-                {
-                    show: isAct, close: () => setIsAct(false), maxW: "sm:max-w-md",
-                    body: (
-                        <>
-                            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Perbarui Status Progres</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6">Catat pencapaian spesifik yang baru saja kamu kerjakan.</p>
-                            <textarea value={taskForm.data.title}
-                                onChange={e => taskForm.setData('title', e.target.value)}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-4 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all mb-6 min-h-[120px] resize-none"
-                                placeholder="Jelaskan detail progres pekerjaan..." />
-
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <button onClick={() => submitProgress('in_progress')} className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl py-3.5 text-xs font-black tracking-widest uppercase transition-all">
-                                    Simpan Draft
-                                </button>
-                                <button onClick={() => submitProgress('done')} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-3.5 text-xs font-black tracking-widest uppercase shadow-lg shadow-emerald-500/30 transition-all flex items-center justify-center gap-2">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                    Finalisasi Selesai
-                                </button>
                             </div>
-                        </>
-                    ),
-                },
-            ].map((m, i) => m.show && (
-                <div key={i} className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
-                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={m.close} />
-                    <div className={`relative w-full ${m.maxW} bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 dark:border-slate-700 animate-in zoom-in-95 duration-200`}>
-                        <button onClick={m.close} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                        {m.body}
+
+                            <button type="submit" disabled={taskForm.processing} className="w-full mt-2 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 rounded-2xl py-4 text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50">
+                                {taskForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                            </button>
+                        </form>
                     </div>
                 </div>
-            ))}
+            )}
+
+            {/* MODAL EDIT NAMA PROYEK (DENGAN DETEKTIF ERROR) */}
+            {isEditTitle && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsEditTitle(false)} />
+                    <div className="relative w-full max-w-sm bg-white dark:bg-slate-800 rounded-[2rem] p-8 shadow-2xl border border-slate-100 dark:border-slate-700 animate-in zoom-in-95 duration-200">
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Ganti Nama Proyek</h3>
+                        <p className="text-xs text-slate-500 mb-6">Nama ini akan dilihat oleh Dosen dan seluruh anggota tim.</p>
+
+                        <form onSubmit={submitProjectTitle}>
+                            <div className="mb-6">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nama Proyek Baru</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    value={projectForm.data.project_title}
+                                    onChange={e => projectForm.setData('project_title', e.target.value)}
+                                    required
+                                />
+                                {projectForm.errors.project_title && (
+                                    <p className="text-rose-500 text-xs font-bold mt-2">{projectForm.errors.project_title}</p>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button type="button" onClick={() => setIsEditTitle(false)} className="flex-1 py-3 text-xs font-black uppercase text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">Batal</button>
+                                <button
+                                    type="submit"
+                                    disabled={projectForm.processing}
+                                    className="flex-1 bg-indigo-600 text-white rounded-xl py-3 text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-500/30 transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    {projectForm.processing ? 'Saving...' : 'Update'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }
