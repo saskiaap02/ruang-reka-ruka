@@ -4,36 +4,43 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActivityLogs from './Components/ActivityLogs';
 import KanbanBoard from './Components/KanbanBoard';
 
-/* ─── Design tokens ───────────────────────────────────────────────────────── */
-const AVATAR_BG = ['#fce7f3', '#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fee2e2'];
+/* ─── Design Tokens (Tailwind Classes) ────────────────────────────────────── */
+const AVATAR_COLORS = [
+    'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400',
+    'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400',
+    'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
+    'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
+];
+
 const CARD_GRADS = [
-    'linear-gradient(135deg,#fce7f3,#fbcfe8)',
-    'linear-gradient(135deg,#dbeafe,#bfdbfe)',
-    'linear-gradient(135deg,#d1fae5,#a7f3d0)',
-    'linear-gradient(135deg,#fef3c7,#fde68a)',
-    'linear-gradient(135deg,#ede9fe,#ddd6fe)',
+    'bg-gradient-to-br from-pink-50 to-pink-100 dark:from-slate-800 dark:to-slate-800/80',
+    'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-slate-800 dark:to-slate-800/80',
+    'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-slate-800 dark:to-slate-800/80',
+    'bg-gradient-to-br from-amber-50 to-amber-100 dark:from-slate-800 dark:to-slate-800/80',
+    'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-slate-800 dark:to-slate-800/80',
 ];
 
 /* ─── Micro-components ────────────────────────────────────────────────────── */
 function Av({ name = '?', size = 36, idx = 0 }) {
     return (
-        <div style={{
-            width: size, height: size, borderRadius: Math.round(size * 0.33),
-            background: AVATAR_BG[idx % AVATAR_BG.length],
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: Math.round(size * 0.38), fontWeight: 800, color: '#1e293b', flexShrink: 0,
-        }}>{name.charAt(0).toUpperCase()}</div>
+        <div
+            className={`flex items-center justify-center font-extrabold shrink-0 rounded-full ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}
+            style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
+        >
+            {name.charAt(0).toUpperCase()}
+        </div>
     );
 }
 
-function StatCard({ label, value, bg, icon }) {
+function StatCard({ label, value, colorClass, icon }) {
     return (
-        <div style={{ background: bg, borderRadius: 18, padding: '18px 20px', flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
-                <span style={{ fontSize: 18 }}>{icon}</span>
+        <div className="flex-1 min-w-0 p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</span>
+                <span className="text-xl">{icon}</span>
             </div>
-            <span style={{ fontSize: 30, fontWeight: 800, color: '#1e293b', letterSpacing: '-0.03em', lineHeight: 1 }}>{value}</span>
+            <span className={`text-3xl font-black tracking-tight ${colorClass}`}>{value}</span>
         </div>
     );
 }
@@ -42,78 +49,66 @@ function ProgressRing({ pct = 0, size = 88 }) {
     const r = (size - 10) / 2;
     const circ = 2 * Math.PI * r;
     return (
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={8} />
-            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#6366f1" strokeWidth={8}
+        <svg width={size} height={size} className="-rotate-90">
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-slate-100 dark:stroke-slate-700" strokeWidth={8} />
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-indigo-500" strokeWidth={8}
                 strokeDasharray={`${(pct / 100) * circ} ${circ}`} strokeLinecap="round"
-                style={{ transition: 'stroke-dasharray .6s ease' }} />
+                style={{ transition: 'stroke-dasharray .8s cubic-bezier(0.4, 0, 0.2, 1)' }} />
         </svg>
     );
 }
 
-/**
- * PeerCard — Kartu peer review untuk satu pasangan reviewer→reviewee
- * 
- * Props yang dipakai dari backend (peer_reviews table):
- *   review.id, review.reviewer_id, review.reviewee_id, review.score,
- *   review.feedback, review.reviewee_name
- * 
- * Mahasiswa hanya melihat review yang ia BERI (reviewer_id === myId).
- * Jika score masih null → tampilkan tombol rating 1-100.
- * Jika score sudah ada → tampilkan badge nilai (readonly).
- */
 function PeerCard({ review, onRate, myId }) {
     const [hov, setHov] = useState(null);
-    // review.score dari DB bisa null (belum diisi) atau integer
     const hasScore = review.score !== null && review.score !== undefined;
 
     return (
-        <div style={{ background: 'white', borderRadius: 16, padding: '16px 18px', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasScore ? 0 : 12 }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <Av name={review.reviewee_name || '?'} size={32} idx={review.reviewee_id % 6} />
+        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all">
+            <div className={`flex justify-between items-center ${hasScore ? 'mb-0' : 'mb-4'}`}>
+                <div className="flex gap-3 items-center">
+                    <Av name={review.reviewee_name || '?'} size={38} idx={review.reviewee_id % 5} />
                     <div>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: 0 }}>{review.reviewee_name || 'Anggota'}</p>
-                        <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {hasScore ? 'Sudah dinilai' : 'Menunggu penilaianmu'}
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100 m-0">{review.reviewee_name || 'Anggota'}</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold m-0 uppercase tracking-wider">
+                            {hasScore ? 'Sudah dinilai' : 'Menunggu penilaian'}
                         </p>
                     </div>
                 </div>
                 {hasScore ? (
-                    <div style={{
-                        borderRadius: 10, padding: '4px 14px',
-                        background: review.score >= 75 ? '#dcfce7' : review.score >= 50 ? '#fef9c3' : '#fee2e2',
-                    }}>
-                        <span style={{
-                            fontSize: 16, fontWeight: 800,
-                            color: review.score >= 75 ? '#16a34a' : review.score >= 50 ? '#ca8a04' : '#dc2626'
-                        }}>
+                    <div className={`rounded-xl px-3 py-1 flex flex-col items-center justify-center border 
+                        ${review.score >= 75 ? 'bg-emerald-50 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20' :
+                            review.score >= 50 ? 'bg-amber-50 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20' :
+                                'bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20'}`}
+                    >
+                        <span className={`text-lg font-black leading-none
+                            ${review.score >= 75 ? 'text-emerald-600 dark:text-emerald-400' :
+                                review.score >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                                    'text-rose-600 dark:text-rose-400'}`}
+                        >
                             {review.score}
                         </span>
-                        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>/100</span>
+                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 leading-none mt-1">/100</span>
                     </div>
                 ) : (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', background: '#fef3c7', padding: '4px 10px', borderRadius: 8, textTransform: 'uppercase' }}>
+                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">
                         Pending
                     </span>
                 )}
             </div>
 
-            {/* Rating buttons — hanya muncul jika belum ada skor */}
             {!hasScore && (
-                <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Beri Nilai (klik skor)</p>
-                    <div style={{ display: 'flex', gap: 4 }}>
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-widest text-center">Beri Nilai</p>
+                    <div className="flex gap-1.5">
                         {[20, 40, 60, 80, 100].map(s => (
                             <button key={s}
                                 onMouseEnter={() => setHov(s)} onMouseLeave={() => setHov(null)}
                                 onClick={() => onRate(review.id, s)}
-                                style={{
-                                    flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
-                                    background: hov !== null && s <= hov ? '#6366f1' : '#f1f5f9',
-                                    color: hov !== null && s <= hov ? 'white' : '#64748b',
-                                    fontSize: 12, fontWeight: 700, transition: 'all .15s', fontFamily: 'inherit',
-                                }}>
+                                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all
+                                    ${hov !== null && s <= hov
+                                        ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/30 scale-105'
+                                        : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 border border-slate-200 dark:border-slate-700'}`}
+                            >
                                 {s}
                             </button>
                         ))}
@@ -122,9 +117,12 @@ function PeerCard({ review, onRate, myId }) {
             )}
 
             {review.feedback && (
-                <p style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', marginTop: 10, borderTop: '1px solid #f8fafc', paddingTop: 8, marginBottom: 0 }}>
-                    "{review.feedback}"
-                </p>
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/60">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 italic m-0 relative">
+                        <span className="text-slate-200 dark:text-slate-700 text-2xl absolute -top-2 -left-1">"</span>
+                        <span className="pl-3 relative z-10">{review.feedback}</span>
+                    </p>
+                </div>
             )}
         </div>
     );
@@ -190,9 +188,6 @@ export default function Dashboard({
         );
     };
 
-    /**
-     * Rate peer — panggil route mahasiswa.peer.rate dengan score (dan opsional feedback)
-     */
     const handlePeerRate = (rid, score) => {
         router.post(route('mahasiswa.peer.rate', rid), { score }, { preserveScroll: true });
     };
@@ -203,83 +198,51 @@ export default function Dashboard({
     const total = tasks?.length || 0;
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     const members = myGroup?.members || [];
-
-    // Berapa peerReview yang belum diisi oleh user ini?
     const pendingPeer = peerReviews?.filter(r => r.score === null).length || 0;
-
-    /* ── Shared style tokens ──────────────────────────────────────────────── */
-    const S = {
-        wrap: { fontFamily: "'Plus Jakarta Sans',sans-serif", background: '#f4f6fb', minHeight: '100vh', padding: '24px 0 60px' },
-        inner: { maxWidth: 1180, margin: '0 auto', padding: '0 24px' },
-        white: { background: 'white', borderRadius: 20, border: '1px solid #f0f0f4', padding: 20 },
-        lbl: { fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 },
-        h1: { fontSize: 26, fontWeight: 800, color: '#1e293b', margin: 0, letterSpacing: '-0.02em' },
-        tab: active => ({
-            padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
-            fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
-            transition: 'all .2s', fontFamily: 'inherit',
-            background: active ? '#6366f1' : 'transparent',
-            color: active ? 'white' : '#94a3b8',
-        }),
-        input: {
-            width: '100%', background: '#f8fafc', border: '1.5px solid #e2e8f0',
-            borderRadius: 12, padding: '11px 14px', fontSize: 14, fontWeight: 500,
-            color: '#1e293b', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
-        },
-        btn: (bg, color, shadow) => ({
-            padding: '12px', borderRadius: 12, background: bg, color,
-            fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer',
-            fontFamily: 'inherit', transition: 'all .2s',
-            boxShadow: shadow || 'none',
-        }),
-    };
 
     return (
         <AuthenticatedLayout
             user={auth.user}
             header={
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 font-sans">
                     <div>
-                        <h2 style={{ fontWeight: 800, fontSize: 18, color: '#1e293b', margin: 0 }}>
-                            Ruang <span style={{ color: '#6366f1' }}>Kelas.</span>
+                        <h2 className="font-extrabold text-xl text-slate-800 dark:text-white m-0">
+                            Ruang <span className="text-indigo-500">Kelas.</span>
                         </h2>
-                        <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold m-0 uppercase tracking-[0.15em] mt-1">
                             Portal Mahasiswa
                         </p>
                     </div>
                     {!myClass && (
-                        <button onClick={() => setIsJoin(true)} style={{
-                            display: 'flex', alignItems: 'center', gap: 6,
-                            background: '#6366f1', color: 'white', padding: '9px 18px', borderRadius: 12,
-                            fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
-                            boxShadow: '0 4px 14px rgba(99,102,241,.35)', fontFamily: 'inherit',
-                        }}>+ Gabung Kelas</button>
+                        <button onClick={() => setIsJoin(true)} className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold border-none cursor-pointer shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                            Gabung Kelas
+                        </button>
                     )}
                 </div>
             }
         >
             <Head title={myClass ? `Kelas: ${myClass.nama_kelas}` : 'Katalog Kelas'} />
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');`}</style>
 
-            <div style={S.wrap}>
-                <div style={S.inner}>
+            <div className="min-h-screen pb-20 font-sans">
+                <div className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-8 pt-8">
 
                     {/* ── NUDGE ALERTS ──────────────────────────────────────── */}
                     {nudges?.filter(n => !n.is_read).map(nudge => (
-                        <div key={nudge.id} style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 16, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: 10, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.5">
+                        <div key={nudge.id} className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 shadow-sm">
+                            <div className="flex gap-4 items-center">
+                                <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center shrink-0">
+                                    <svg className="w-5 h-5 text-rose-500 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                     </svg>
                                 </div>
                                 <div>
-                                    <p style={{ fontSize: 10, fontWeight: 800, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>Peringatan Dosen</p>
-                                    <p style={{ fontSize: 13, color: '#7c3aed', margin: 0, fontWeight: 500 }}>{nudge.message}</p>
+                                    <p className="text-[10px] font-extrabold text-rose-500 dark:text-rose-400 uppercase tracking-widest m-0 mb-1">Peringatan Dosen</p>
+                                    <p className="text-sm text-slate-800 dark:text-slate-200 m-0 font-medium">{nudge.message}</p>
                                 </div>
                             </div>
                             <Link href={route('mahasiswa.colek.read', { id: nudge.id })} method="post" as="button" preserveScroll
-                                style={{ padding: '8px 14px', background: '#ef4444', color: 'white', borderRadius: 10, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+                                className="px-5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-500/30 transition-all whitespace-nowrap w-full sm:w-auto text-center">
                                 Saya Mengerti
                             </Link>
                         </div>
@@ -289,259 +252,272 @@ export default function Dashboard({
                         TAMPILAN 1: KATALOG KELAS (myClass === null)
                     ══════════════════════════════════════════════ */}
                     {!myClass ? (
-                        <div>
-                            <div style={{ marginBottom: 24 }}>
-                                <h1 style={S.h1}>Hai, {auth.user.name.split(' ')[0]}! 👋</h1>
-                                <p style={{ fontSize: 14, color: '#64748b', margin: '4px 0 0', fontWeight: 500 }}>
-                                    Kamu terdaftar di {joinedClasses?.length || 0} kelas.
-                                </p>
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="mb-8">
+                                <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight m-0">Hai, {auth.user.name.split(' ')[0]}! 👋</h1>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 font-medium">Kamu terdaftar di {joinedClasses?.length || 0} kelas semester ini.</p>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                                 {joinedClasses?.map((item, idx) => (
                                     <div key={item.id}
-                                        style={{ background: CARD_GRADS[idx % CARD_GRADS.length], borderRadius: 20, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: 176, position: 'relative', overflow: 'hidden', transition: 'transform .2s', cursor: 'default' }}
-                                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
-                                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                                        <div style={{ position: 'absolute', right: -16, bottom: -16, width: 90, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,.3)', pointerEvents: 'none' }} />
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(0,0,0,.5)', textTransform: 'uppercase', letterSpacing: '0.08em', background: 'rgba(255,255,255,.5)', padding: '3px 8px', borderRadius: 6 }}>
-                                                    {item.project_class?.mata_kuliah}
+                                        className={`relative overflow-hidden rounded-3xl p-6 flex flex-col justify-between h-48 border border-slate-100 dark:border-slate-700/60 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group ${CARD_GRADS[idx % CARD_GRADS.length]}`}
+                                    >
+                                        <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-white/30 dark:bg-white/5 blur-2xl pointer-events-none group-hover:scale-150 transition-transform duration-700" />
+
+                                        <div className="relative z-10">
+                                            <div className="flex justify-between items-start mb-3">
+                                                {/* Ini sekarang jadi nama kelas (badge kecil) */}
+                                                <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/20 dark:border-slate-700/50">
+                                                    {item.project_class?.nama_kelas}
                                                 </span>
-                                                <span style={{
-                                                    fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 6, textTransform: 'uppercase',
-                                                    background: item.status === 'pending' ? '#fef3c7' : '#dcfce7',
-                                                    color: item.status === 'pending' ? '#b45309' : '#15803d'
-                                                }}>
+
+                                                <span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider shrink-0 ml-2
+            ${item.status === 'pending'
+                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                                                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'}`}
+                                                >
                                                     {item.status === 'pending' ? '⏳ Pending' : '✓ Aktif'}
                                                 </span>
                                             </div>
-                                            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '10px 0 0', lineHeight: 1.25, letterSpacing: '-0.01em' }}>
-                                                {item.project_class?.nama_kelas}
+
+                                            {/* Ini sekarang jadi nama Mata Kuliah (teks besar dominan) */}
+                                            {/* Saya tambahkan line-clamp-2 agar kalau nama matkulnya panjang, tidak merusak tinggi kartu */}
+                                            <h3 className="text-xl font-extrabold text-slate-800 dark:text-white leading-tight mt-4 line-clamp-2" title={item.project_class?.mata_kuliah}>
+                                                {item.project_class?.mata_kuliah}
                                             </h3>
                                         </div>
+
                                         <Link href={route('mahasiswa.kelas.show', item.project_class_id)}
-                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,.65)', borderRadius: 12, padding: '9px 13px', textDecoration: 'none', color: '#1e293b', fontSize: 12, fontWeight: 700, backdropFilter: 'blur(4px)' }}>
+                                            className="relative z-10 flex items-center justify-between bg-white/70 dark:bg-slate-900/70 backdrop-blur-md rounded-xl p-3 text-sm font-bold text-slate-800 dark:text-white hover:bg-white dark:hover:bg-slate-900 transition-colors group/btn">
                                             {item.status === 'pending' ? 'Cek Status' : 'Buka Ruang'}
-                                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                                            <svg className="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                                         </Link>
                                     </div>
                                 ))}
-
-                                {/* + Join card */}
-                                <div onClick={() => setIsJoin(true)}
-                                    style={{ border: '2px dashed #c7d2fe', background: 'white', borderRadius: 20, height: 176, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', transition: 'all .2s' }}
-                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.background = '#f5f3ff'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#c7d2fe'; e.currentTarget.style.background = 'white'; }}>
-                                    <div style={{ width: 42, height: 42, borderRadius: 14, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#6366f1" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                    </div>
-                                    <p style={{ fontSize: 13, fontWeight: 700, color: '#6366f1', margin: 0 }}>Gabung Kelas Baru</p>
-                                    <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>Masukkan kode dari dosen</p>
-                                </div>
                             </div>
                         </div>
 
                     ) : isPending ? (
-                        /* ══════════════════════════════════════════════
-                            TAMPILAN: PENDING APPROVAL
-                        ══════════════════════════════════════════════ */
-                        <div style={{ textAlign: 'center', padding: '80px 24px' }}>
-                            <div style={{ width: 76, height: 76, borderRadius: 24, background: '#fef9c3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, margin: '0 auto 20px' }}>⏳</div>
-                            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: '0 0 10px' }}>
-                                Sabar ya, {auth.user.name.split(' ')[0]}!
-                            </h2>
-                            <p style={{ color: '#64748b', fontSize: 14, maxWidth: 380, margin: '0 auto 22px', lineHeight: 1.7 }}>
-                                Akses ke <strong style={{ color: '#6366f1' }}>{myClass.nama_kelas}</strong> sedang diproses. Dosen perlu memberikan approval manual.
+                        <div className="text-center py-20 px-4 max-w-md mx-auto animate-in zoom-in-95 duration-500">
+                            <div className="w-24 h-24 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner border 8 border-amber-50 dark:border-amber-500/10">⏳</div>
+                            <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-3">Sabar ya, {auth.user.name.split(' ')[0]}!</h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8">
+                                Akses ke <strong className="text-indigo-500 dark:text-indigo-400">{myClass.nama_kelas}</strong> sedang diproses. Dosen perlu memberikan approval manual ke akunmu.
                             </p>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'white', border: '1px solid #e2e8f0', borderRadius: 12, padding: '9px 16px' }}>
-                                <div style={{ width: 7, height: 7, background: '#f59e0b', borderRadius: '50%' }}></div>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Menunggu Konfirmasi Dosen</span>
+                            <div className="inline-flex items-center gap-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full py-2.5 px-5 shadow-sm">
+                                <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                                </span>
+                                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Menunggu Konfirmasi</span>
                             </div>
-                            <br />
-                            <Link href={route('mahasiswa.dashboard')} style={{ display: 'inline-block', marginTop: 18, fontSize: 12, fontWeight: 700, color: '#94a3b8', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                                ← Kembali ke Katalog
-                            </Link>
+                            <div className="mt-10">
+                                <Link href={route('mahasiswa.dashboard')} className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 uppercase tracking-widest transition-colors">
+                                    ← Kembali ke Katalog
+                                </Link>
+                            </div>
                         </div>
 
                     ) : (
-                        /* ══════════════════════════════════════════════
-                            TAMPILAN: DETAIL KELAS (APPROVED)
-                        ══════════════════════════════════════════════ */
-                        <div>
-                            {/* Header */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* Header Section */}
+                            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6 mb-8">
                                 <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                                        <Link href={route('mahasiswa.dashboard')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 10, background: 'white', border: '1px solid #e2e8f0', textDecoration: 'none' }}>
-                                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#64748b" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <Link href={route('mahasiswa.dashboard')} className="flex items-center justify-center w-8 h-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-indigo-500 transition-colors shadow-sm">
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                                         </Link>
-                                        <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{myClass.nama_kelas}</span>
+                                        <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">{myClass.nama_kelas}</span>
                                     </div>
-                                    <h1 style={S.h1}>Halo, {auth.user.name.split(' ')[0]}! 👋</h1>
-                                    <p style={{ fontSize: 14, color: '#64748b', margin: '4px 0 0', fontWeight: 500 }}>
+                                    <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Halo, {auth.user.name.split(' ')[0]}! 👋</h1>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium m-0">
                                         {myGroup
-                                            ? <>Tim <strong style={{ color: '#6366f1' }}>{myGroup.nama_kelompok}</strong> · {myGroup.project_title || 'Proyek Kelompok'}</>
+                                            ? <>Tergabung di <strong className="text-indigo-500 dark:text-indigo-400">Tim {myGroup.nama_kelompok}</strong> · {myGroup.project_title || 'Proyek Kelompok'}</>
                                             : 'AI sedang memetakan tim kamu...'}
                                     </p>
                                 </div>
 
                                 {myGroup && (
-                                    <div style={{ display: 'flex', background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: 4, gap: 2 }}>
+                                    <div className="flex bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-1.5 shadow-sm overflow-x-auto hide-scrollbar">
                                         {[
                                             { k: 'overview', l: 'Overview' },
                                             { k: 'kanban', l: 'Kanban' },
                                             { k: 'logs', l: 'Logbook' },
                                             { k: 'peer', l: `Peer Review${pendingPeer > 0 ? ` (${pendingPeer})` : ''}` },
                                         ].map(t => (
-                                            <button key={t.k} onClick={() => setTab(t.k)} style={S.tab(tab === t.k)}>{t.l}</button>
+                                            <button key={t.k} onClick={() => setTab(t.k)}
+                                                className={`whitespace-nowrap px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-all ${tab === t.k
+                                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                                    : 'bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                                    }`}>
+                                                {t.l}
+                                            </button>
                                         ))}
                                     </div>
                                 )}
                             </div>
 
                             {!myGroup ? (
-                                /* AI Plotting state */
-                                <div style={{ textAlign: 'center', padding: '60px 24px', ...S.white }}>
-                                    <div style={{ fontSize: 46, marginBottom: 12 }}>🤖</div>
-                                    <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>AI Sedang Mengolah Data...</h3>
-                                    <p style={{ color: '#64748b', fontSize: 13, maxWidth: 340, margin: '0 auto' }}>
-                                        Status <span style={{ color: '#22c55e', fontWeight: 700 }}>Approved</span>. Tunggu AI membagi tim berdasarkan performamu!
+                                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-3xl p-16 text-center shadow-sm max-w-2xl mx-auto mt-10">
+                                    <div className="text-6xl mb-6 animate-bounce">🤖</div>
+                                    <h3 className="text-xl font-black text-slate-800 dark:text-white mb-3">AI Sedang Mengolah Data...</h3>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-sm mx-auto">
+                                        Status kamu <span className="text-emerald-500 font-bold bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded">Approved</span>. Saat ini sistem sedang bekerja menganalisis profil untuk membagi tim secara proporsional.
                                     </p>
                                 </div>
 
                             ) : tab === 'overview' ? (
-                                /* ─────────────────────────────────────────────
-                                   OVERVIEW TAB
-                                ───────────────────────────────────────────── */
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, alignItems: 'start' }}>
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-in fade-in duration-300">
 
                                     {/* LEFT COLUMN */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                    <div className="col-span-1 lg:col-span-8 flex flex-col gap-6">
 
                                         {/* Stat cards */}
-                                        <div style={{ display: 'flex', gap: 12 }}>
-                                            <StatCard label="Selesai" value={done} bg="#dbeafe" icon="✅" />
-                                            <StatCard label="Berjalan" value={active} bg="#fce7f3" icon="🔥" />
-                                            <StatCard label="Total" value={total} bg="#d1fae5" icon="📋" />
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <StatCard label="Selesai" value={done} colorClass="text-blue-600 dark:text-blue-400" icon="✅" />
+                                            <StatCard label="Berjalan" value={active} colorClass="text-amber-600 dark:text-amber-400" icon="🔥" />
+                                            <StatCard label="Total" value={total} colorClass="text-emerald-600 dark:text-emerald-400" icon="📋" />
                                         </div>
 
                                         {/* Progress card */}
-                                        <div style={{ ...S.white, display: 'flex', alignItems: 'center', gap: 20 }}>
-                                            <div style={{ position: 'relative', flexShrink: 0 }}>
-                                                <ProgressRing pct={pct} size={88} />
-                                                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <span style={{ fontSize: 16, fontWeight: 800, color: '#6366f1' }}>{pct}%</span>
+                                        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-center sm:items-stretch gap-6">
+                                            <div className="relative shrink-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                                                <ProgressRing pct={pct} size={100} />
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{pct}%</span>
                                                 </div>
                                             </div>
-                                            <div style={{ flex: 1 }}>
-                                                <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 4px' }}>Progress Proyek</p>
-                                                <p style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', letterSpacing: '-0.01em' }}>{myGroup.project_title || 'Proyek Kelompok'}</p>
-                                                <div style={{ background: '#f1f5f9', borderRadius: 100, height: 6, overflow: 'hidden' }}>
-                                                    <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', borderRadius: 100, transition: 'width .6s ease' }} />
+                                            <div className="flex-1 flex flex-col justify-center text-center sm:text-left">
+                                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">Progress Proyek Tim</p>
+                                                <p className="text-xl font-black text-slate-800 dark:text-white mb-4">{myGroup.project_title || 'Proyek Belum Berjudul'}</p>
+
+                                                <div className="w-full bg-slate-100 dark:bg-slate-700/50 rounded-full h-2.5 mb-2 overflow-hidden border border-slate-200 dark:border-slate-700">
+                                                    <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full relative" style={{ width: `${pct}%`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+                                                        <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
+                                                    </div>
                                                 </div>
-                                                <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0', fontWeight: 600 }}>{done} dari {total} tugas selesai</p>
+
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                                                    <strong className="text-slate-800 dark:text-slate-200">{done}</strong> dari <strong className="text-slate-800 dark:text-slate-200">{total}</strong> tugas utama selesai dikerjakan
+                                                </p>
                                             </div>
                                         </div>
 
                                         {/* Active tasks */}
-                                        <div style={S.white}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                                                <p style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: 0 }}>Tugas Aktif</p>
-                                                <button onClick={() => setTab('kanban')} style={{ fontSize: 11, fontWeight: 700, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Lihat Semua →</button>
+                                        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <p className="text-base font-black text-slate-800 dark:text-white m-0">Tugas Aktif</p>
+                                                <button onClick={() => setTab('kanban')} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">Lihat Papan →</button>
                                             </div>
-                                            {tasks?.filter(t => t.status !== 'done').slice(0, 5).map(t => (
-                                                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid #f8fafc' }}>
-                                                    <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: t.status === 'in_progress' ? '#6366f1' : '#94a3b8' }} />
-                                                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', flex: 1, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title || t.judul}</p>
-                                                    <span style={{
-                                                        fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 6,
-                                                        background: t.status === 'in_progress' ? '#dbeafe' : '#f1f5f9',
-                                                        color: t.status === 'in_progress' ? '#2563eb' : '#64748b'
-                                                    }}>
-                                                        {t.status === 'in_progress' ? 'Progress' : 'Backlog'}
-                                                    </span>
-                                                    <button onClick={() => handleNext(t.id)} style={{ width: 26, height: 26, borderRadius: 8, background: '#f1f5f9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="#64748b" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {!tasks?.filter(t => t.status !== 'done').length && (
-                                                <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', padding: '16px 0', margin: 0 }}>Semua tugas selesai 🎉</p>
-                                            )}
-                                            <button onClick={() => openTaskModal('backlog')} style={{ width: '100%', marginTop: 12, padding: '9px', borderRadius: 10, border: '1.5px dashed #c7d2fe', background: 'none', color: '#6366f1', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                                                + Tambah Tugas
+
+                                            <div className="flex flex-col gap-3">
+                                                {tasks?.filter(t => t.status !== 'done').slice(0, 5).map(t => (
+                                                    <div key={t.id} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-colors group">
+                                                        <div className={`w-2 h-2 rounded-full shrink-0 ${t.status === 'in_progress' ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                                                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200 flex-1 m-0 truncate">{t.title || t.judul}</p>
+
+                                                        <span className={`hidden sm:inline-block text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg
+                                                            ${t.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}
+                                                        >
+                                                            {t.status === 'in_progress' ? 'Progress' : 'Backlog'}
+                                                        </span>
+
+                                                        <button onClick={() => handleNext(t.id)} className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-indigo-500 hover:border-indigo-500 flex items-center justify-center shrink-0 transition-all group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10">
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                                                        </button>
+                                                    </div>
+                                                ))}
+
+                                                {!tasks?.filter(t => t.status !== 'done').length && (
+                                                    <div className="text-center py-8 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+                                                        <span className="text-2xl block mb-2">🎉</span>
+                                                        <p className="text-sm font-bold text-slate-500 dark:text-slate-400 m-0">Semua tugas beres, luar biasa!</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <button onClick={() => openTaskModal('backlog')} className="w-full mt-4 py-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-extrabold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors uppercase tracking-widest">
+                                                + Tambah Tugas Baru
                                             </button>
                                         </div>
 
                                         {/* Recent logs */}
-                                        <div style={S.white}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                                                <p style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: 0 }}>Aktivitas Terbaru</p>
-                                                <button onClick={() => setTab('logs')} style={{ fontSize: 11, fontWeight: 700, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Semua →</button>
+                                        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <p className="text-base font-black text-slate-800 dark:text-white m-0">Log Aktivitas Terbaru</p>
+                                                <button onClick={() => setTab('logs')} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">Logbook Penuh →</button>
                                             </div>
-                                            {logs?.slice(0, 5).map((log, i) => (
-                                                <div key={log.id || i} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#6366f1', marginTop: 5, flexShrink: 0 }} />
-                                                    <div>
-                                                        <p style={{ fontSize: 12, color: '#475569', margin: 0, lineHeight: 1.5 }}>{log.description || log.action}</p>
-                                                        <p style={{ fontSize: 10, color: '#94a3b8', margin: '2px 0 0', fontWeight: 600 }}>{log.created_at_human || ''}</p>
+                                            <div className="relative border-l-2 border-slate-100 dark:border-slate-700/50 ml-3 space-y-6">
+                                                {logs?.slice(0, 5).map((log, i) => (
+                                                    <div key={log.id || i} className="relative pl-6">
+                                                        <div className="absolute w-3 h-3 bg-indigo-500 rounded-full -left-[7px] top-1.5 shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#1e293b]" />
+                                                        <p className="text-sm text-slate-700 dark:text-slate-300 m-0 leading-relaxed font-medium">{log.description || log.action}</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider">{log.created_at_human || ''}</p>
                                                     </div>
-                                                </div>
-                                            ))}
-                                            {!logs?.length && <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>Belum ada aktivitas.</p>}
+                                                ))}
+                                                {!logs?.length && <p className="text-sm font-medium text-slate-500 dark:text-slate-400 pl-6 m-0">Belum ada jejak aktivitas di logbook.</p>}
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* RIGHT SIDEBAR */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                    <div className="col-span-1 lg:col-span-4 flex flex-col gap-6">
 
                                         {/* Team members */}
-                                        <div style={S.white}>
-                                            <p style={{ ...S.lbl, marginBottom: 14 }}>Anggota Tim · {members.length} orang</p>
-                                            {members.map((m, i) => (
-                                                <div key={m.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: i < members.length - 1 ? 10 : 0 }}>
-                                                    <Av name={m.name || m.user?.name || '?'} size={34} idx={i} />
-                                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name || m.user?.name}</p>
-                                                        <p style={{ fontSize: 10, color: '#94a3b8', margin: 0, fontWeight: 600 }}>
-                                                            {(m.id || m.user_id) === auth.user.id ? 'Kamu' : 'Anggota'}
-                                                        </p>
+                                        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm">
+                                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-5">Tim Divisi ({members.length} Orang)</p>
+                                            <div className="flex flex-col gap-4">
+                                                {members.map((m, i) => (
+                                                    <div key={m.id || i} className="flex items-center gap-3">
+                                                        <Av name={m.name || m.user?.name || '?'} size={40} idx={i} />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100 m-0 truncate">{m.name || m.user?.name}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 m-0 uppercase tracking-widest mt-0.5">
+                                                                {(m.id || m.user_id) === auth.user.id ? 'Kamu' : 'Anggota'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.5)]" title="Active" />
                                                     </div>
-                                                    <div style={{ width: 7, height: 7, background: '#22c55e', borderRadius: '50%' }} />
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
 
                                         {/* Peer review summary */}
-                                        <div style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', borderRadius: 20, padding: 18 }}>
-                                            <p style={{ ...S.lbl, color: 'rgba(0,0,0,.4)', marginBottom: 10 }}>Peer Review</p>
-                                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 6 }}>
-                                                <span style={{ fontSize: 30, fontWeight: 800, color: '#4c1d95', lineHeight: 1 }}>
+                                        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 text-white shadow-lg shadow-indigo-500/20 relative overflow-hidden">
+                                            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+
+                                            <p className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest mb-4">Agenda Peer Review</p>
+                                            <div className="flex items-end gap-2 mb-2">
+                                                <span className="text-5xl font-black leading-none tracking-tighter">
                                                     {(peerReviews?.length || 0) - pendingPeer}
                                                 </span>
-                                                <span style={{ fontSize: 14, color: '#6d28d9', fontWeight: 600, marginBottom: 3 }}>/ {peerReviews?.length || 0} selesai</span>
+                                                <span className="text-sm font-bold text-indigo-200 mb-1">/ {peerReviews?.length || 0} dinilai</span>
                                             </div>
+
                                             {pendingPeer > 0 && (
-                                                <p style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600, margin: '0 0 10px' }}>
-                                                    ⚠ {pendingPeer} menunggu penilaianmu
-                                                </p>
+                                                <div className="bg-white/20 backdrop-blur-md rounded-xl px-3 py-2 mt-4 border border-white/20">
+                                                    <p className="text-[11px] font-bold text-white m-0 flex items-center gap-1.5">
+                                                        <svg className="w-3.5 h-3.5 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                        {pendingPeer} rekan menunggu nilaimu!
+                                                    </p>
+                                                </div>
                                             )}
-                                            <button onClick={() => setTab('peer')} style={{ width: '100%', padding: '9px', borderRadius: 10, background: 'rgba(255,255,255,.55)', border: 'none', fontSize: 12, fontWeight: 700, color: '#4c1d95', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                                {pendingPeer > 0 ? 'Nilai Sekarang →' : 'Lihat Detail →'}
+
+                                            <button onClick={() => setTab('peer')} className="w-full mt-6 py-3 rounded-xl bg-white text-indigo-600 text-xs font-black uppercase tracking-widest shadow-md hover:bg-slate-50 transition-colors">
+                                                {pendingPeer > 0 ? 'Mulai Menilai →' : 'Lihat Rekap →'}
                                             </button>
                                         </div>
 
-                                        {/* Score received (dari myPeerScore props) */}
+                                        {/* Score received */}
                                         {myPeerScore !== null && myPeerScore !== undefined && (
-                                            <div style={{ background: 'linear-gradient(135deg,#d1fae5,#a7f3d0)', borderRadius: 20, padding: 18 }}>
-                                                <p style={{ ...S.lbl, color: 'rgba(0,0,0,.4)', marginBottom: 8 }}>Nilai Peer Kamu</p>
-                                                <p style={{ fontSize: 34, fontWeight: 800, color: '#065f46', margin: '0 0 2px', lineHeight: 1 }}>
-                                                    {myPeerScore}
-                                                    <span style={{ fontSize: 16, fontWeight: 600, color: '#059669' }}>/100</span>
-                                                </p>
-                                                <p style={{ fontSize: 11, color: '#047857', margin: 0, fontWeight: 600 }}>
+                                            <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm">
+                                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Nilai Kinerja Kamu</p>
+                                                <div className="flex items-end gap-1 mb-1">
+                                                    <span className="text-4xl font-black text-emerald-500 leading-none tracking-tighter">{myPeerScore}</span>
+                                                    <span className="text-lg font-bold text-slate-300 dark:text-slate-600">/100</span>
+                                                </div>
+                                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2">
                                                     Rata-rata dari {myPeerReviewedCount}/{myPeerTotalReviewers} penilai
                                                 </p>
                                             </div>
@@ -550,70 +526,49 @@ export default function Dashboard({
                                 </div>
 
                             ) : tab === 'kanban' ? (
-                                <KanbanBoard tasks={tasks} myGroup={myGroup} openModal={openTaskModal} onNext={handleNext} handleDelete={confirmDelete} />
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                    <KanbanBoard tasks={tasks} myGroup={myGroup} openModal={openTaskModal} onNext={handleNext} handleDelete={confirmDelete} />
+                                </div>
 
                             ) : tab === 'logs' ? (
-                                <ActivityLogs logs={logs} />
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl shadow-sm overflow-hidden">
+                                    <ActivityLogs logs={logs} />
+                                </div>
 
                             ) : tab === 'peer' ? (
-                                /* ─────────────────────────────────────────────
-                                   PEER REVIEW TAB
-                                   Hanya menampilkan review yang user INI berikan
-                                   (reviewer_id === auth.user.id) — sudah difilter di controller
-                                ───────────────────────────────────────────── */
-                                <div>
-                                    <div style={{ ...S.white, marginBottom: 14 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm mb-6">
+                                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8 pb-6 border-b border-slate-100 dark:border-slate-700/60">
                                             <div>
-                                                <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Peer Review Anggota Tim</h3>
-                                                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-                                                    Nilai kontribusi rekan secara objektif. Penilaian bersifat anonim.
+                                                <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">Penilaian Teman Sejawat (Peer)</h3>
+                                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 m-0 max-w-lg">
+                                                    Evaluasi performa rekan satu tim secara jujur dan objektif. Penilaian kamu bersifat rahasia (anonim) dan akan berkontribusi pada nilai akhir mereka.
                                                 </p>
                                             </div>
                                             {pendingPeer > 0 && (
-                                                <span style={{ fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#b45309', padding: '6px 12px', borderRadius: 10, border: '1px solid #fde68a' }}>
-                                                    ⏳ {pendingPeer} belum dinilai
+                                                <span className="inline-flex items-center gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold px-4 py-2 rounded-xl uppercase tracking-wider shrink-0">
+                                                    <svg className="w-4 h-4 animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                    {pendingPeer} Belum Dinilai
                                                 </span>
                                             )}
                                         </div>
 
                                         {peerReviews?.length > 0 ? (
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                                                 {peerReviews.map(r => (
                                                     <PeerCard key={r.id} review={r} onRate={handlePeerRate} myId={auth.user.id} />
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                                                <div style={{ fontSize: 36, marginBottom: 8 }}>📊</div>
-                                                <p style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8', margin: 0 }}>
-                                                    Peer review belum dibuka oleh dosen.
+                                            <div className="text-center py-20 px-4">
+                                                <div className="text-6xl mb-4">📊</div>
+                                                <h4 className="text-lg font-black text-slate-800 dark:text-white mb-2">Sesi Penilaian Belum Dibuka</h4>
+                                                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 m-0">
+                                                    Dosen belum mengaktifkan sesi peer review untuk kelas ini. Cek lagi nanti!
                                                 </p>
                                             </div>
                                         )}
                                     </div>
-
-                                    {/* Score received aggregate */}
-                                    {myPeerScore !== null && myPeerScore !== undefined && (
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-                                            <div style={{ background: 'linear-gradient(135deg,#d1fae5,#a7f3d0)', borderRadius: 20, padding: 20 }}>
-                                                <p style={{ ...S.lbl, color: 'rgba(0,0,0,.4)', marginBottom: 8 }}>Nilai Peer Kamu</p>
-                                                <p style={{ fontSize: 36, fontWeight: 800, color: '#065f46', margin: '0 0 2px', lineHeight: 1 }}>
-                                                    {myPeerScore}
-                                                    <span style={{ fontSize: 16, fontWeight: 600, color: '#059669' }}>/100</span>
-                                                </p>
-                                                <p style={{ fontSize: 11, color: '#047857', fontWeight: 600, margin: 0 }}>Rata-rata</p>
-                                            </div>
-                                            <div style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', borderRadius: 20, padding: 20 }}>
-                                                <p style={{ ...S.lbl, color: 'rgba(0,0,0,.4)', marginBottom: 8 }}>Sudah Dinilai</p>
-                                                <p style={{ fontSize: 36, fontWeight: 800, color: '#4c1d95', margin: '0 0 2px', lineHeight: 1 }}>
-                                                    {myPeerReviewedCount}
-                                                    <span style={{ fontSize: 16, fontWeight: 600, color: '#6d28d9' }}>/{myPeerTotalReviewers}</span>
-                                                </p>
-                                                <p style={{ fontSize: 11, color: '#6d28d9', fontWeight: 600, margin: 0 }}>penilai yang mengisi</p>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             ) : null}
                         </div>
@@ -622,86 +577,98 @@ export default function Dashboard({
             </div>
 
             {/* ═══════════════════════════════════════════════════════
-                MODALS
+                MODALS (TAILWIND REWRITE)
             ═══════════════════════════════════════════════════════ */}
             {[
                 {
-                    show: isJoin, close: () => setIsJoin(false), maxW: 380,
+                    show: isJoin, close: () => setIsJoin(false), maxW: "sm:max-w-sm",
                     body: (
                         <>
-                            <div style={{ width: 46, height: 46, borderRadius: 15, background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                                <svg width="21" height="21" fill="none" viewBox="0 0 24 24" stroke="#6366f1" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center mb-6">
+                                <svg className="w-7 h-7 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
                             </div>
-                            <h3 style={{ fontSize: 19, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Gabung Kelas</h3>
-                            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>Masukkan kode 6 karakter dari dosen</p>
+                            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Gabung Kelas</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6">Masukkan kode rahasia 6 karakter yang diberikan oleh Dosen.</p>
                             <form onSubmit={submitJoin}>
                                 <input type="text" value={joinForm.data.invite_code}
                                     onChange={e => joinForm.setData('invite_code', e.target.value.toUpperCase())}
                                     maxLength="6" required
-                                    style={{ ...S.input, textAlign: 'center', fontSize: 24, fontWeight: 800, letterSpacing: '0.4em', marginBottom: 10 }}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-4 text-center text-3xl font-black text-slate-800 dark:text-white tracking-[0.4em] focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all mb-3 uppercase"
                                     placeholder="AABBCC" />
-                                {joinForm.errors.invite_code && <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{joinForm.errors.invite_code}</p>}
-                                <button type="submit" disabled={joinForm.processing} style={{ ...S.btn('#6366f1', 'white', '0 4px 14px rgba(99,102,241,.35)'), width: '100%', fontSize: 14 }}>
-                                    {joinForm.processing ? 'Memproses...' : 'Gabung Sekarang'}
+                                {joinForm.errors.invite_code && <p className="text-rose-500 text-xs font-bold mb-4 bg-rose-50 dark:bg-rose-500/10 p-2 rounded-lg">{joinForm.errors.invite_code}</p>}
+                                <button type="submit" disabled={joinForm.processing} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3.5 text-sm font-black tracking-widest uppercase shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-50">
+                                    {joinForm.processing ? 'Memproses Kode...' : 'Konfirmasi Gabung'}
                                 </button>
                             </form>
                         </>
                     ),
                 },
                 {
-                    show: isTask, close: () => setIsTask(false), maxW: 500,
+                    show: isTask, close: () => setIsTask(false), maxW: "sm:max-w-md",
                     body: (
                         <>
-                            <h3 style={{ fontSize: 19, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Tugas Baru</h3>
-                            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>Tambahkan ke papan kanban tim</p>
-                            <form onSubmit={submitTask} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Inisiasi Tugas Baru</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6">Tambahkan pekerjaan ke dalam papan kanban divisi kamu.</p>
+                            <form onSubmit={submitTask} className="flex flex-col gap-4">
                                 {[
-                                    { label: 'Judul Tugas', el: <input type="text" style={S.input} placeholder="Misal: Slicing UI Dashboard..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus /> },
-                                    { label: 'Tautan (Opsional)', el: <input type="url" style={S.input} placeholder="https://..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} /> },
+                                    { label: 'Deskripsi Tugas Utama', el: <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="Misal: Slicing UI Dashboard Admin..." value={taskForm.data.title} onChange={e => taskForm.setData('title', e.target.value)} autoFocus /> },
+                                    { label: 'Tautan Referensi (Opsional)', el: <input type="url" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all" placeholder="https://figma.com/..." value={taskForm.data.link} onChange={e => taskForm.setData('link', e.target.value)} /> },
                                 ].map(f => (
                                     <div key={f.label}>
-                                        <label style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{f.label}</label>
+                                        <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">{f.label}</label>
                                         {f.el}
                                     </div>
                                 ))}
                                 <div>
-                                    <label style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Lampiran</label>
-                                    <div style={{ border: '2px dashed #c7d2fe', borderRadius: 12, padding: 14, textAlign: 'center', background: '#f5f3ff', position: 'relative', cursor: 'pointer' }}>
-                                        <input type="file" onChange={e => taskForm.setData('attachment', e.target.files[0])} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} />
-                                        <p style={{ fontSize: 12, fontWeight: 600, color: taskForm.data.attachment ? '#6366f1' : '#94a3b8', margin: 0 }}>
-                                            {taskForm.data.attachment ? `📎 ${taskForm.data.attachment.name}` : 'Pilih file atau seret ke sini'}
-                                        </p>
+                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Dokumen Lampiran (Opsional)</label>
+                                    <div className="relative w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors cursor-pointer group">
+                                        <input type="file" onChange={e => taskForm.setData('attachment', e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 text-slate-500 transition-colors">
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                            </div>
+                                            <p className={`text-sm font-bold m-0 ${taskForm.data.attachment ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                {taskForm.data.attachment ? taskForm.data.attachment.name : 'Klik atau seret file ke sini'}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                                <button type="submit" disabled={taskForm.processing} style={{ ...S.btn('#1e293b', 'white'), padding: '12px', marginTop: 4 }}>
-                                    {taskForm.processing ? 'Menyimpan...' : 'Simpan Tugas'}
+                                <button type="submit" disabled={taskForm.processing} className="w-full mt-2 bg-slate-800 dark:bg-slate-100 hover:bg-slate-900 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl py-3.5 text-sm font-black tracking-widest uppercase shadow-md transition-all disabled:opacity-50">
+                                    {taskForm.processing ? 'Menyimpan ke DB...' : 'Simpan Tugas'}
                                 </button>
                             </form>
                         </>
                     ),
                 },
                 {
-                    show: isAct, close: () => setIsAct(false), maxW: 460,
+                    show: isAct, close: () => setIsAct(false), maxW: "sm:max-w-md",
                     body: (
                         <>
-                            <h3 style={{ fontSize: 19, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Update Progres</h3>
-                            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 14px' }}>Catat apa yang sudah dikerjakan</p>
+                            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Perbarui Status Progres</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6">Catat pencapaian spesifik yang baru saja kamu kerjakan.</p>
                             <textarea value={taskForm.data.title}
                                 onChange={e => taskForm.setData('title', e.target.value)}
-                                style={{ ...S.input, height: 110, resize: 'none', marginBottom: 14 }}
-                                placeholder="Detail progres..." />
-                            <div style={{ display: 'flex', gap: 10 }}>
-                                <button onClick={() => submitProgress('in_progress')} style={{ ...S.btn('#f1f5f9', '#475569'), flex: 1, padding: '12px' }}>Simpan Progress</button>
-                                <button onClick={() => submitProgress('done')} style={{ ...S.btn('#22c55e', 'white', '0 4px 14px rgba(34,197,94,.3)'), flex: 1, padding: '12px' }}>✓ Selesai</button>
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-4 text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all mb-6 min-h-[120px] resize-none"
+                                placeholder="Jelaskan detail progres pekerjaan..." />
+
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <button onClick={() => submitProgress('in_progress')} className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl py-3.5 text-xs font-black tracking-widest uppercase transition-all">
+                                    Simpan Draft
+                                </button>
+                                <button onClick={() => submitProgress('done')} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-3.5 text-xs font-black tracking-widest uppercase shadow-lg shadow-emerald-500/30 transition-all flex items-center justify-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    Finalisasi Selesai
+                                </button>
                             </div>
                         </>
                     ),
                 },
             ].map((m, i) => m.show && (
-                <div key={i} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                    <div style={{ background: 'white', borderRadius: 24, width: '100%', maxWidth: m.maxW, padding: 28, position: 'relative', boxShadow: '0 24px 60px rgba(0,0,0,.18)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
-                        <button onClick={m.close} style={{ position: 'absolute', top: 18, right: 18, width: 28, height: 28, borderRadius: 8, background: '#f1f5f9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#64748b" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                <div key={i} className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={m.close} />
+                    <div className={`relative w-full ${m.maxW} bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 dark:border-slate-700 animate-in zoom-in-95 duration-200`}>
+                        <button onClick={m.close} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                         {m.body}
                     </div>
