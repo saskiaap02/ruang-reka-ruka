@@ -624,6 +624,8 @@ export default function Dashboard({
                                     />
                                 </div>
 
+                                
+
                             ) : tab === 'logs' ? (
                                 <div className="animate-in fade-in duration-300">
                                     <ActivityLogs logs={logs} />

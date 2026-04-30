@@ -55,7 +55,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/tasks/{id}/status', [StudentDashboard::class, 'updateTaskStatus'])->name('task.update-status');
         Route::delete('/tasks/{id}', [StudentDashboard::class, 'deleteTask'])->name('task.delete');
         Route::post('/tasks/{taskId}/complete', [StudentDashboard::class, 'completeTask'])->name('tasks.complete');
-        
+    
         // Rute untuk mahasiswa menyimpan nilai Peer Review
         Route::post('/peer/{id}/rate', [StudentDashboard::class, 'ratePeer'])->name('peer.rate');
         

@@ -414,6 +414,44 @@ class DashboardController extends Controller
         return back()->with('success', 'Tugas berhasil dihapus.');
     }
 
+    public function completeTask(Request $request, $taskId)
+    {
+        // 1. Validasi File (Hanya PDF/Gambar, Maks 2MB)
+        $request->validate([
+            'evidence_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'notes'         => 'nullable|string'
+        ], [
+            'evidence_file.required' => 'File bukti wajib diunggah.',
+            'evidence_file.mimes'    => 'File harus berupa PDF, JPG, JPEG, atau PNG.',
+            'evidence_file.max'      => 'Ukuran file maksimal 2MB.'
+        ]);
+
+        // 2. Cari tugas berdasarkan ID
+        $task = Task::findOrFail($taskId);
+
+        // 3. Proses Simpan File ke Storage Laravel
+        if ($request->hasFile('evidence_file')) {
+            $file = $request->file('evidence_file');
+            
+            // Bikin nama file unik supaya tidak bentrok
+            $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+            
+            // Simpan ke folder: storage/app/public/bukti_tugas
+            $filePath = $file->storeAs('bukti_tugas', $fileName, 'public');
+            
+            // Simpan lokasi file ke database
+            $task->file_path = $filePath; 
+        }
+
+        // 4. Update status tugas dan catatan
+        $task->status = 'done';
+        $task->notes  = $request->notes;
+        $task->save();
+
+        // 5. Kembalikan ke halaman React dengan Flash Session 'success'
+        return back()->with('success', 'Bukti berhasil diunggah dan tugas selesai!');
+    }
+
     /**
      * TANDAI NUDGE SUDAH DIBACA
      */
